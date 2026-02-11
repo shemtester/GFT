@@ -190,7 +190,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
 const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const weekStart = new Date(now.setDate(now.getDate() - 7)).getTime();
+    const weekStart = new Date(new Date().setDate(new Date().getDate() - 7)).getTime();
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
     const todaySales = sales.filter(s => s.timestamp >= todayStart).reduce((acc, curr) => acc + curr.total, 0);
@@ -318,13 +318,14 @@ export default function App() {
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
   useEffect(() => {
-    geminiServiceRef.current = new GeminiService(appState, (newState) => setAppState(newState));
-  }, []);
+  geminiServiceRef.current = new GeminiService(appState, (newState) => {
+    setAppState(newState);
+  });
+}, [appState]);
 
   useEffect(() => {
-    localStorage.setItem('pos_state', JSON.stringify(appState));
-    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
-  }, [appState]);
+  localStorage.setItem('pos_state', JSON.stringify(appState));
+}, [appState]);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('pos_cart');
