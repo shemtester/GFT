@@ -1,0 +1,15 @@
+{
+  "short_name": "GiftFactory",
+  "name": "Gift Factory POS",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3793/3793740.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#99042E",
+  "background_color": "#ffffff"
+}
