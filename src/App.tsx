@@ -537,13 +537,21 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 md:gap-4">
            {/* BUTTON 1: Dashboard */}
-           <button onClick={() => setActiveModal('SALES')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
-              <RotateCcw size={16} /> Dashboard
-           </button>
+          <button
+  onClick={() => setActiveModal('SALES')}
+  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition"
+>
+  <RotateCcw size={16} />
+  <span className="hidden md:inline">Dashboard</span>
+</button>
            {/* BUTTON 2: Add Product */}
-           <button onClick={() => setActiveModal('INVENTORY')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
-              <PlusCircle size={16} /> Add Product
-           </button>
+          <button
+  onClick={() => setActiveModal('INVENTORY')}
+  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition"
+>
+  <PlusCircle size={16} />
+  <span className="hidden md:inline">Add Product</span>
+</button>
            <button onClick={handleGenerateReport} className="flex items-center gap-2 bg-[#F79032] hover:bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
               <FileText size={16} /> <span className="hidden md:inline">EOD Report</span>
            </button>
