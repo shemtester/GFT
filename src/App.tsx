@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- 1. TYPES & INTERFACES ---
-export type MessageRole = 'user' | 'model';
+export const MessageRole = {
+  USER: 'user',
+  MODEL: 'model',
+} as const;
+
+export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
 
 export interface ChatMessage {
   id: string;
