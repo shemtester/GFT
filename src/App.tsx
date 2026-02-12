@@ -352,29 +352,33 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
 
                 {/* --- TABLE --- */}
                 <div className="flex-1 overflow-auto bg-white relative">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left table-fixed">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10">
                             <tr>
-                                <th className="px-4 py-3 font-bold">Date</th>
-                                <th className="px-4 py-3 font-bold hidden md:table-cell">Items</th>
-                                <th className="px-4 py-3 font-bold">Total</th>
-                                <th className="px-4 py-3 font-bold text-right">Action</th>
+                                <th className="px-4 py-3 font-bold w-1/4 md:w-auto">Date</th>
+                                <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th>
+                                <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th>
+                                <th className="px-4 py-3 font-bold w-1/4 md:w-auto">Total</th>
+                                <th className="px-4 py-3 font-bold text-right w-1/4 md:w-auto">Act</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredSales.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="py-10 text-center text-gray-400">No sales found.</td>
+                                    <td colSpan={5} className="py-10 text-center text-gray-400">No sales found.</td>
                                 </tr>
                             ) : (
                                 filteredSales.map((sale) => (
                                     <tr key={sale.id} className="hover:bg-gray-50 transition">
                                         <td className="px-4 py-3">
-                                            <div className="font-medium text-gray-900">{sale.date.split(' ')[0]}</div>
-                                            <div className="text-[10px] text-gray-400">{sale.date.split(' ')[1]}</div>
+                                            <div className="font-medium text-gray-900 truncate">{sale.date.split(' ')[0]}</div>
+                                            <div className="text-[10px] text-gray-400 truncate">{sale.date.split(' ')[1]}</div>
                                         </td>
-                                        <td className="px-4 py-3 hidden md:table-cell text-gray-600 max-w-xs truncate">
+                                        <td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate" title={sale.productCode}>
                                             {sale.productCode}
+                                        </td>
+                                        <td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate">
+                                            {sale.customerId}
                                         </td>
                                         <td className="px-4 py-3 font-bold text-gray-800">
                                             ${sale.total.toLocaleString()}
@@ -745,9 +749,9 @@ export default function App() {
                             </div>
                         )}
 
-                        <div className="w-full mt-4 md:mt-0 pr-8"> {/* Added padding-right to avoid text hitting icons */}
+                        <div className="w-full mt-4 md:mt-0 pr-16 text-left"> {/* Added PR-16 to avoid icons */}
                             <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
-                            <h3 className="font-bold text-gray-800 mt-1 md:mt-2 line-clamp-1 leading-snug group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
+                            <h3 className="font-bold text-gray-800 mt-1 md:mt-2 w-full truncate group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
                         </div>
                         <div className="flex justify-between items-end w-full mt-1">
                             <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
