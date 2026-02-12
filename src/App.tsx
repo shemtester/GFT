@@ -91,10 +91,8 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
   useEffect(() => {
     const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
     let prefix = 'RNG';
-    
     if (category === 'Necklace') prefix = 'NK';
     else if (category === 'Bracelet') prefix = 'BL';
-    
     setCode(`${prefix}${randomSixDigit}`);
   }, [category]);
 
@@ -111,8 +109,8 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white p-6 rounded-lg w-80 shadow-xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
         <h2 className="font-bold mb-4 text-lg">Add New Product</h2>
         <div className="space-y-3 mb-4">
             <div>
@@ -134,45 +132,25 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
             </div>
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Unique Code</label>
-                <input 
-                    className="w-full border border-gray-300 p-2 rounded bg-gray-50 font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" 
-                    placeholder="Unique ID" 
-                    value={code} 
-                    onChange={e => setCode(e.target.value)} 
-                />
+                <input className="w-full border border-gray-300 p-2 rounded bg-gray-50 font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" value={code} onChange={e => setCode(e.target.value)} />
             </div>
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Product Name</label>
-                <input 
-                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
-                    placeholder="e.g. Gold Band" 
-                    value={name} 
-                    onChange={e => setName(e.target.value)} 
-                />
+                <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Gold Band" value={name} onChange={e => setName(e.target.value)} />
             </div>
-            <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Price</label>
-                <input 
-                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
-                    type="number" 
-                    placeholder="0.00" 
-                    value={price} 
-                    onChange={e => setPrice(e.target.value)} 
-                />
-            </div>
-            <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
-                <input 
-                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
-                    type="number" 
-                    placeholder="Qty" 
-                    value={stock} 
-                    onChange={e => setStock(e.target.value)} 
-                />
+            <div className="flex gap-2">
+                <div className="flex-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Price</label>
+                    <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" placeholder="0.00" value={price} onChange={e => setPrice(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Qty</label>
+                    <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={stock} onChange={e => setStock(e.target.value)} />
+                </div>
             </div>
         </div>
-        <button onClick={handleSave} className="bg-[#99042E] text-white w-full py-2 rounded-lg font-bold mb-2 hover:bg-[#7a0325]">Save Product</button>
-        <button onClick={onClose} className="w-full py-2 text-gray-500 hover:text-gray-800">Cancel</button>
+        <button onClick={handleSave} className="bg-[#99042E] text-white w-full py-3 rounded-lg font-bold mb-2 hover:bg-[#7a0325]">Save Product</button>
+        <button onClick={onClose} className="w-full py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
         </div>
     </div>
   );
@@ -186,8 +164,8 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
     const [stock, setStock] = useState(product.stock);
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-80 shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="font-bold text-lg">Edit Product</h2>
                     <button onClick={onClose}><X size={20} /></button>
@@ -212,26 +190,28 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
                         </div>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-500">Unique ID (Code)</label>
+                        <label className="text-xs font-bold text-gray-500">Unique ID</label>
                         <input className="w-full border border-gray-300 p-2 rounded font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" value={code} onChange={e => setCode(e.target.value)} />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Name</label>
                         <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" value={name} onChange={e => setName(e.target.value)} />
                     </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-500">Price</label>
-                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-500">Stock</label>
-                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={stock} onChange={e => setStock(Number(e.target.value))} />
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500">Price</label>
+                            <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} />
+                        </div>
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500">Stock</label>
+                            <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={stock} onChange={e => setStock(Number(e.target.value))} />
+                        </div>
                     </div>
                 </div>
 
                 <div className="mt-6 flex gap-2">
-                    <button onClick={() => onDelete(product)} className="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200">Delete</button>
-                    <button onClick={() => onSave({ ...product, category, code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-2 rounded font-bold hover:bg-[#7a0325]">Save</button>
+                    <button onClick={() => onDelete(product)} className="flex-1 bg-red-50 text-red-600 py-3 rounded-lg font-bold hover:bg-red-100">Delete</button>
+                    <button onClick={() => onSave({ ...product, category, code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325]">Save</button>
                 </div>
             </div>
         </div>
@@ -248,23 +228,23 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-72 shadow-xl">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-xs shadow-xl">
                 <h2 className="font-bold mb-2">Restock Product</h2>
                 <p className="text-sm text-gray-500 mb-4">Adding stock for: <b>{product.name}</b></p>
                 
                 <input 
-                    className="w-full border p-2 rounded mb-4 focus:ring-2 focus:ring-[#99042E] outline-none" 
+                    className="w-full border border-gray-300 p-3 rounded mb-4 focus:ring-2 focus:ring-[#99042E] outline-none text-lg" 
                     type="number" 
-                    placeholder="Quantity to add (e.g. 50)" 
+                    placeholder="Qty to add" 
                     autoFocus
                     value={amount} 
                     onChange={e => setAmount(e.target.value)} 
                 />
                 
                 <div className="flex gap-2">
-                    <button onClick={onClose} className="flex-1 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
-                    <button onClick={handleRestock} className="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Confirm</button>
+                    <button onClick={onClose} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
+                    <button onClick={handleRestock} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700">Confirm</button>
                 </div>
             </div>
         </div>
@@ -275,7 +255,6 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
     const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- Filter Logic ---
     const filteredSales = sales.filter(s => {
         const saleDate = new Date(s.timestamp);
         const now = new Date();
@@ -298,21 +277,20 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
         return matchesTime && matchesSearch;
     });
 
-    // --- Metrics Calculations ---
     const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
     const totalOrders = filteredSales.length;
     const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl w-full max-w-5xl h-[80vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in font-sans">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans">
                 
-                {/* --- 1. HEADER (Dark Red) --- */}
-                <div className="bg-[#99042E] p-4 flex justify-between items-center text-white shrink-0">
-                    <h2 className="font-bold text-lg flex items-center gap-2">
-                        <RotateCcw size={20} /> Sales Dashboard
+                {/* --- HEADER --- */}
+                <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
+                    <h2 className="font-bold text-base md:text-lg flex items-center gap-2">
+                        <RotateCcw size={18} /> Sales Dashboard
                     </h2>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                         <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
                             <CloudUpload size={18} />
                         </button>
@@ -325,15 +303,15 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
                     </div>
                 </div>
 
-                {/* --- 2. CONTROLS BAR (Tabs & Search) --- */}
-                <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row gap-4 justify-between bg-white shrink-0">
-                    {/* Tabs */}
-                    <div className="flex bg-gray-100 p-1 rounded-lg self-start">
+                {/* --- CONTROLS --- */}
+                <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-3 justify-between bg-white shrink-0">
+                    {/* Responsive Tabs */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
                         {(['today', 'week', 'month', 'all'] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`px-4 py-1.5 rounded-md text-sm font-bold capitalize transition-all ${
+                                className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs md:text-sm font-bold capitalize whitespace-nowrap transition-all ${
                                     activeTab === tab 
                                     ? 'bg-[#99042E] text-white shadow-sm' 
                                     : 'text-gray-500 hover:text-gray-900'
@@ -348,7 +326,7 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
                     <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
                         <input 
-                            className="w-full bg-gray-800 text-white rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400"
+                            className="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400"
                             placeholder="Search sales..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -356,93 +334,57 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
                     </div>
                 </div>
 
-                {/* --- 3. METRICS CARDS --- */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 border-b border-gray-200 shrink-0">
-                    {/* Revenue Card */}
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="bg-green-100 p-3 rounded-full text-green-600">
-                            <DollarSign size={24} />
-                        </div>
-                        <div>
-                            <div className="text-gray-500 text-xs font-bold uppercase">Total Revenue</div>
-                            <div className="text-2xl font-bold text-gray-800">${totalRevenue.toLocaleString()}</div>
-                        </div>
+                {/* --- METRICS --- */}
+                <div className="grid grid-cols-3 gap-2 md:gap-4 p-3 bg-gray-50 border-b border-gray-200 shrink-0">
+                    <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
+                        <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Revenue</div>
+                        <div className="text-lg md:text-2xl font-bold text-gray-800">${totalRevenue.toLocaleString()}</div>
                     </div>
-
-                    {/* Orders Card */}
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="bg-blue-100 p-3 rounded-full text-blue-600">
-                            <ShoppingCart size={24} />
-                        </div>
-                        <div>
-                            <div className="text-gray-500 text-xs font-bold uppercase">Total Orders</div>
-                            <div className="text-2xl font-bold text-gray-800">{totalOrders}</div>
-                        </div>
+                    <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
+                        <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Orders</div>
+                        <div className="text-lg md:text-2xl font-bold text-gray-800">{totalOrders}</div>
                     </div>
-
-                    {/* Avg Value Card */}
-                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                        <div className="bg-orange-100 p-3 rounded-full text-orange-600">
-                            <Calendar size={24} />
-                        </div>
-                        <div>
-                            <div className="text-gray-500 text-xs font-bold uppercase">Avg Order Value</div>
-                            <div className="text-2xl font-bold text-gray-800">${avgOrderValue.toFixed(2)}</div>
-                        </div>
+                    <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
+                        <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Avg Order</div>
+                        <div className="text-lg md:text-2xl font-bold text-gray-800">${avgOrderValue.toFixed(0)}</div>
                     </div>
                 </div>
 
-                {/* --- 4. DATA TABLE --- */}
+                {/* --- TABLE --- */}
                 <div className="flex-1 overflow-auto bg-white relative">
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10">
                             <tr>
-                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
-                                    Date/Time <ArrowUpDown size={12} />
-                                </th>
-                                <th className="px-6 py-3 font-bold">Items</th>
-                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
-                                    Customer <ArrowUpDown size={12} />
-                                </th>
-                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
-                                    Total <ArrowUpDown size={12} />
-                                </th>
-                                <th className="px-6 py-3 font-bold text-center">Action</th>
+                                <th className="px-4 py-3 font-bold">Date</th>
+                                <th className="px-4 py-3 font-bold hidden md:table-cell">Items</th>
+                                <th className="px-4 py-3 font-bold">Total</th>
+                                <th className="px-4 py-3 font-bold text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {filteredSales.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="py-10 text-center text-gray-400">
-                                        No sales found for this period.
-                                    </td>
+                                    <td colSpan={4} className="py-10 text-center text-gray-400">No sales found.</td>
                                 </tr>
                             ) : (
                                 filteredSales.map((sale) => (
                                     <tr key={sale.id} className="hover:bg-gray-50 transition">
-                                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                                            {sale.date}
-                                            <div className="text-[10px] text-gray-400 font-mono mt-0.5">{sale.id.slice(0, 8)}</div>
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium text-gray-900">{sale.date.split(' ')[0]}</div>
+                                            <div className="text-[10px] text-gray-400">{sale.date.split(' ')[1]}</div>
                                         </td>
-                                        <td className="px-6 py-4 text-gray-600 max-w-xs truncate" title={sale.productCode}>
-                                            {sale.productCode.split('|').join(', ')}
+                                        <td className="px-4 py-3 hidden md:table-cell text-gray-600 max-w-xs truncate">
+                                            {sale.productCode}
                                         </td>
-                                        <td className="px-6 py-4 text-gray-600">
-                                            {sale.customerId === 'GUEST' ? (
-                                                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">GUEST</span>
-                                            ) : (
-                                                <span className="text-[#99042E] font-medium">{sale.customerId}</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-gray-800">
+                                        <td className="px-4 py-3 font-bold text-gray-800">
                                             ${sale.total.toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 text-center">
+                                        <td className="px-4 py-3 text-right">
                                             <button 
                                                 onClick={() => onReverseSale(sale.id)} 
-                                                className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 px-3 py-1 rounded text-xs font-bold transition"
+                                                className="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition"
                                             >
-                                                Reverse
+                                                Rev
                                             </button>
                                         </td>
                                     </tr>
@@ -547,35 +489,29 @@ export default function App() {
   };
 
   const handleReverseSale = async (saleId: string) => {
-      // Allow reversing if specific ID provided (simple logic for now)
-      if(confirm("Are you sure you want to reverse this sale? Stock will NOT be restored automatically in this version.")) {
+      if(confirm("Reverse this sale? Stock must be restored manually.")) {
           try {
             await deleteDoc(doc(db, "sales", saleId));
-            alert("Sale record removed.");
+            alert("Sale reversed.");
           } catch(e: any) {
-              alert("Error removing sale: " + e.message);
+              alert("Error: " + e.message);
           }
       }
   };
 
-  // --- THE "LOUD" UPLOAD BUTTON LOGIC ---
   const handleSeedData = async () => {
-      if (!confirm("This will upload Initial Data to Firebase. Continue?")) return;
-
+      if (!confirm("Upload Initial Data to Firebase?")) return;
       try {
           const batch = writeBatch(db);
           INITIAL_INVENTORY.forEach(p => {
               const ref = doc(collection(db, "inventory"));
               batch.set(ref, p);
           });
-
           await batch.commit();
-          alert("✅ SUCCESS: Data has been sent to Firebase!");
+          alert("✅ Data Synced!");
           window.location.reload();
-
       } catch (error: any) {
-          console.error("Firebase Error:", error);
-          alert("❌ FAILED: " + error.message + "\n\nCheck your API Keys and Internet.");
+          alert("❌ Error: " + error.message);
       }
   };
 
@@ -584,7 +520,7 @@ export default function App() {
         const existing = prev.find(item => item.code === product.code);
         if (existing) {
             if (existing.cartQuantity >= product.stock) {
-                alert(`Cannot add more. Only ${product.stock} in stock.`);
+                alert(`Only ${product.stock} in stock.`);
                 return prev;
             }
             return prev.map(item => item.code === product.code ? { ...item, cartQuantity: item.cartQuantity + 1 } : item);
@@ -619,14 +555,12 @@ export default function App() {
     setMobileView('PRODUCTS');
   };
 
-  // --- FIREBASE WRITE HANDLERS ---
-
   const handleAddProduct = async (product: Product) => {
       try {
         await addDoc(collection(db, "inventory"), product);
         setActiveModal(null);
       } catch (e: any) {
-          alert("Error adding product: " + e.message);
+          alert("Error: " + e.message);
       }
   };
 
@@ -644,18 +578,10 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (product: Product) => {
-    if (!product.id) {
-        alert("Error: Cannot delete product without ID");
-        return;
-    }
-    
-    if (confirm(`Are you sure you want to permanently delete ${product.name}?`)) {
-        try {
-            await deleteDoc(doc(db, "inventory", product.id));
-            setEditingProduct(null); 
-        } catch (e: any) {
-            alert("Error deleting product: " + e.message);
-        }
+    if (!product.id) return;
+    if (confirm(`Delete ${product.name}?`)) {
+        await deleteDoc(doc(db, "inventory", product.id));
+        setEditingProduct(null);
     }
   };
 
@@ -700,7 +626,6 @@ export default function App() {
     try {
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
-      
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -709,16 +634,13 @@ export default function App() {
               batch.update(ref, { stock: newStock });
           }
       }
-      
       await batch.commit();
-
       const response = await geminiServiceRef.current!.sendMessage([], "Record sale");
       setLastReceipt(response);
       setShowReceiptModal(true);
       clearCart();
     } catch (error: any) {
-      console.error(error);
-      alert("Error processing sale: " + error.message);
+      alert("Error: " + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -752,21 +674,21 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => setActiveModal('SALES')} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
-              <RotateCcw size={20} />
+           {/* RESPONSIVE BUTTONS: Icon only on Mobile, Icon+Text on Desktop */}
+           <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard">
+              <RotateCcw size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
-           <button onClick={() => setActiveModal('INVENTORY')} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
-              <PlusCircle size={20} />
+           <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Add Product">
+              <PlusCircle size={18} /> <span className="hidden md:inline">Add</span>
            </button>
-           <button onClick={handleGenerateReport} className="p-2 bg-[#F79032] rounded-lg hover:bg-orange-600 transition shadow-sm">
-              <FileText size={20} />
+           <button onClick={handleGenerateReport} className="flex items-center gap-2 bg-[#F79032] hover:bg-orange-600 text-white p-2 md:px-3 md:py-2 rounded-lg text-sm font-bold shadow-sm transition" title="EOD Report">
+              <FileText size={18} /> <span className="hidden md:inline">Report</span>
            </button>
         </div>
       </header>
 
       {/* --- Main POS Area --- */}
       <div className="flex-1 flex overflow-hidden relative">
-        
         {/* Left: Product Grid */}
         <div className={`flex-1 flex flex-col p-4 md:p-6 md:pr-3 min-w-0 bg-gray-100 ${mobileView === 'CART' ? 'hidden md:flex' : 'flex'}`}>
            <div className="mb-4 relative">
@@ -784,8 +706,8 @@ export default function App() {
                 {filteredInventory.length === 0 ? (
                     <div className="col-span-full flex flex-col items-center justify-center text-gray-400 mt-10">
                         <PackagePlus size={48} className="mb-2 opacity-50" />
-                        <p>No products found.</p>
-                        <p className="text-xs">Add a product or check connection.</p>
+                        <p>No products.</p>
+                        <p className="text-xs">Tap + to add.</p>
                     </div>
                 ) : (
                     filteredInventory.map(product => (
@@ -796,26 +718,20 @@ export default function App() {
                         }}
                         className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col items-start text-left group h-28 md:h-32 justify-between active:scale-95 ${product.stock === 0 ? 'border-gray-200 opacity-60 bg-gray-50' : 'border-gray-200 shadow-sm hover:shadow-md hover:border-[#99042E]'}`}
                     >
-                        <div 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingProduct(product);
-                            }}
-                            className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-[#99042E] text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
-                            title="Edit Product"
-                        >
-                            <Pencil size={14} />
-                        </div>
-
-                        <div 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setRestockingProduct(product);
-                            }}
-                            className="absolute top-2 right-10 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-green-600 text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
-                            title="Add Stock (Restock)"
-                        >
-                            <PackagePlus size={14} />
+                        {/* Edit & Restock Icons */}
+                        <div className="absolute top-2 right-2 flex gap-1">
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); setRestockingProduct(product); }}
+                                className="p-1.5 bg-white/90 backdrop-blur-sm hover:bg-green-600 text-gray-500 hover:text-white rounded-lg shadow-sm cursor-pointer" 
+                            >
+                                <PackagePlus size={14} />
+                            </div>
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); setEditingProduct(product); }}
+                                className="p-1.5 bg-white/90 backdrop-blur-sm hover:bg-[#99042E] text-gray-500 hover:text-white rounded-lg shadow-sm cursor-pointer" 
+                            >
+                                <Pencil size={14} />
+                            </div>
                         </div>
 
                         {product.stock > 0 && product.stock < 5 && (
@@ -825,15 +741,15 @@ export default function App() {
                         )}
                         {product.stock === 0 && (
                             <div className="absolute top-2 left-2 bg-gray-800 text-white px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
-                            Out of Stock
+                            Out
                             </div>
                         )}
 
-                        <div className="w-full mt-4 md:mt-0">
-                        <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
-                        <h3 className="font-bold text-gray-800 mt-1 md:mt-2 line-clamp-2 leading-snug group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
+                        <div className="w-full mt-4 md:mt-0 pr-8"> {/* Added padding-right to avoid text hitting icons */}
+                            <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
+                            <h3 className="font-bold text-gray-800 mt-1 md:mt-2 line-clamp-1 leading-snug group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
                         </div>
-                        <div className="flex justify-between items-end w-full">
+                        <div className="flex justify-between items-end w-full mt-1">
                             <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${product.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                 Qty: {product.stock}
@@ -867,39 +783,22 @@ export default function App() {
              <span className="font-bold text-lg text-gray-800">Current Order</span>
           </div>
 
-          {/* Customer Panel */}
           <div className="p-4 border-b border-gray-100 bg-gray-50">
              <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
                    <User size={12} /> Customer
                 </label>
-                {activeCustomer && (
-                   <span className="text-xs text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded-full">
-                     {activeCustomer.points} Points
-                   </span>
-                )}
              </div>
              <div className="flex gap-2">
                <input 
-                 className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none ${customerId && !activeCustomer && customerId !== '999' ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-[#99042E]'}`}
-                 placeholder="Loyalty ID (e.g. GFT000123)"
+                 className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none border-gray-300 focus:ring-[#99042E]"
+                 placeholder="Customer ID (Optional)"
                  value={customerId}
                  onChange={e => setCustomerId(e.target.value.toUpperCase())}
                />
              </div>
-             {customerId && !activeCustomer && customerId !== '999' && (
-                <div className="mt-1 text-[10px] text-red-500 font-bold">
-                    ID not found. Use 999 for Guest.
-                </div>
-             )}
-             {activeCustomer && (
-                <div className="mt-2 text-sm text-[#99042E] font-medium animate-fade-in">
-                   Welcome back, {activeCustomer.name}
-                </div>
-             )}
           </div>
 
-          {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
              {cart.length === 0 ? (
                <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 opacity-50">
@@ -912,11 +811,6 @@ export default function App() {
                     <div className="flex-1">
                        <div className="font-medium text-gray-800">{item.name}</div>
                        <div className="text-xs text-gray-400 font-mono">{item.code}</div>
-                       {item.stock < 5 && (
-                         <div className="text-[10px] text-red-500 flex items-center gap-1 mt-1 font-bold">
-                            <AlertTriangle size={10} /> Low Stock ({item.stock} left)
-                         </div>
-                       )}
                     </div>
                     
                     <div className="flex items-center gap-3 mr-4">
@@ -940,7 +834,6 @@ export default function App() {
              )}
           </div>
 
-          {/* Calculations & Actions */}
           <div className="p-4 bg-gray-50 border-t border-gray-200 space-y-3 pb-8 md:pb-4">
              <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-gray-600">
@@ -956,28 +849,6 @@ export default function App() {
                      onChange={e => setDiscountInput(e.target.value)}
                    />
                 </div>
-                
-                {activeCustomer && activeCustomer.points > 0 && (
-                  <div className="flex justify-between items-center text-gray-600 pt-1">
-                     <div className="flex items-center gap-2">
-                        <input 
-                            type="checkbox" 
-                            id="usePoints"
-                            checked={usePoints}
-                            onChange={(e) => setUsePoints(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-300 text-[#99042E] focus:ring-[#99042E]"
-                        />
-                        <label htmlFor="usePoints" className="flex items-center gap-1 cursor-pointer select-none">
-                            <Coins size={14} className="text-[#F0C053]" />
-                            Pay with Points
-                        </label>
-                     </div>
-                     <span className={`${usePoints ? 'text-[#99042E] font-bold' : ''}`}>
-                         {usePoints ? `-$${pointsToRedeem.toLocaleString()}` : `${activeCustomer.points} Avail`}
-                     </span>
-                  </div>
-                )}
-
                 <div className="flex justify-between font-bold text-lg text-[#99042E] pt-2 border-t border-gray-200">
                    <span>Total</span>
                    <span>${estimatedTotal.toLocaleString()}</span>
@@ -990,7 +861,7 @@ export default function App() {
                 </button>
                 <button 
                    onClick={handleProcessSale}
-                   disabled={cart.length === 0 || isProcessing || (customerId.trim() !== '' && customerId !== '999' && !activeCustomer)}
+                   disabled={cart.length === 0 || isProcessing}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
