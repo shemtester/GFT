@@ -18,6 +18,7 @@ export interface ChatMessage {
 export interface Product {
   id?: string;
   code: string;
+  category?: string; // Added optional category field
   name: string;
   price: number;
   stock: number;
@@ -46,13 +47,12 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA (For Seeding) ---
+// --- 2. MOCK DATA ---
 const INITIAL_INVENTORY: Product[] = [
-  { code: 'GFT001', name: 'Custom Mug', price: 1500, stock: 20 },
-  { code: 'GFT002', name: 'Keyring', price: 500, stock: 50 },
-  { code: 'GFT003', name: 'T-Shirt (L)', price: 2500, stock: 10 },
-  { code: 'GFT004', name: 'Gift Box', price: 800, stock: 5 },
-  { code: 'GFT005', name: 'Engraved Pen', price: 1200, stock: 0 },
+  { code: 'RNG839201', category: 'Rings', name: 'Gold Band Ring', price: 1500, stock: 20 },
+  { code: 'NK293841', category: 'Necklace', name: 'Silver Chain', price: 2500, stock: 10 },
+  { code: 'BL938271', category: 'Bracelet', name: 'Charm Bracelet', price: 1200, stock: 15 },
+  { code: 'GFT004', category: 'Other', name: 'Gift Box', price: 800, stock: 5 },
 ];
 
 const INITIAL_CUSTOMERS: Customer[] = [
@@ -82,15 +82,28 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
 };
 
 const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product) => void }) => {
-  const [code, setCode] = useState('GFT' + Math.floor(Math.random() * 1000));
+  const [category, setCategory] = useState('Rings');
+  const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('10');
 
+  // Smart Autofill: When category changes, update the code prefix
+  useEffect(() => {
+    const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
+    let prefix = 'RNG';
+    
+    if (category === 'Necklace') prefix = 'NK';
+    else if (category === 'Bracelet') prefix = 'BL';
+    
+    setCode(`${prefix}${randomSixDigit}`);
+  }, [category]);
+
   const handleSave = () => {
     if (!name || !price) return alert("Please fill in Name and Price");
     const newProd: Product = { 
-        code: code || 'UNK', 
+        code: code || 'UNK',
+        category, 
         name, 
         price: Number(price), 
         stock: Number(stock) 
@@ -103,10 +116,65 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
         <div className="bg-white p-6 rounded-lg w-80 shadow-xl">
         <h2 className="font-bold mb-4 text-lg">Add New Product</h2>
         <div className="space-y-3 mb-4">
-            <input className="w-full border p-2 rounded" placeholder="Unique ID (e.g. GFT001)" value={code} onChange={e => setCode(e.target.value)} />
-            <input className="w-full border p-2 rounded" placeholder="Product Name" value={name} onChange={e => setName(e.target.value)} />
-            <input className="w-full border p-2 rounded" type="number" placeholder="Price" value={price} onChange={e => setPrice(e.target.value)} />
-            <input className="w-full border p-2 rounded" type="number" placeholder="Stock Qty" value={stock} onChange={e => setStock(e.target.value)} />
+            {/* 1. Category */}
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Category</label>
+                <select 
+                    className="w-full border p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                >
+                    <option value="Rings">Rings</option>
+                    <option value="Necklace">Necklace</option>
+                    <option value="Bracelet">Bracelet</option>
+                </select>
+            </div>
+
+            {/* 2. Unique Code */}
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Unique Code</label>
+                <input 
+                    className="w-full border p-2 rounded bg-gray-50 font-mono text-sm" 
+                    placeholder="Unique ID" 
+                    value={code} 
+                    onChange={e => setCode(e.target.value)} 
+                />
+            </div>
+
+            {/* 3. Product Name */}
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Product Name</label>
+                <input 
+                    className="w-full border p-2 rounded" 
+                    placeholder="e.g. Gold Band" 
+                    value={name} 
+                    onChange={e => setName(e.target.value)} 
+                />
+            </div>
+
+            {/* 4. Price */}
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Price</label>
+                <input 
+                    className="w-full border p-2 rounded" 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={price} 
+                    onChange={e => setPrice(e.target.value)} 
+                />
+            </div>
+
+            {/* 5. Quantity */}
+            <div>
+                <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
+                <input 
+                    className="w-full border p-2 rounded" 
+                    type="number" 
+                    placeholder="Qty" 
+                    value={stock} 
+                    onChange={e => setStock(e.target.value)} 
+                />
+            </div>
         </div>
         <button onClick={handleSave} className="bg-[#99042E] text-white w-full py-2 rounded-lg font-bold mb-2 hover:bg-[#7a0325]">Save Product</button>
         <button onClick={onClose} className="w-full py-2 text-gray-500 hover:text-gray-800">Cancel</button>
@@ -117,6 +185,7 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
 
 const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Product, onClose: () => void, onSave: (p: Product) => void, onDelete: (p: Product) => void }) => {
     const [code, setCode] = useState(product.code);
+    const [category, setCategory] = useState(product.category || 'Rings');
     const [name, setName] = useState(product.name);
     const [price, setPrice] = useState(product.price);
     const [stock, setStock] = useState(product.stock);
@@ -130,6 +199,18 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
                 </div>
                 
                 <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500">Category</label>
+                        <select 
+                            className="w-full border p-2 rounded bg-white"
+                            value={category}
+                            onChange={(e) => setCategory(e.target.value)}
+                        >
+                            <option value="Rings">Rings</option>
+                            <option value="Necklace">Necklace</option>
+                            <option value="Bracelet">Bracelet</option>
+                        </select>
+                    </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Unique ID (Code)</label>
                         <input className="w-full border p-2 rounded font-mono text-sm" value={code} onChange={e => setCode(e.target.value)} />
@@ -150,7 +231,7 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
 
                 <div className="mt-6 flex gap-2">
                     <button onClick={() => onDelete(product)} className="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200">Delete</button>
-                    <button onClick={() => onSave({ ...product, code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-2 rounded font-bold hover:bg-[#7a0325]">Save</button>
+                    <button onClick={() => onSave({ ...product, category, code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-2 rounded font-bold hover:bg-[#7a0325]">Save</button>
                 </div>
             </div>
         </div>
@@ -439,7 +520,8 @@ export default function App() {
         name: updatedProduct.name,
         price: updatedProduct.price,
         stock: updatedProduct.stock,
-        code: updatedProduct.code
+        code: updatedProduct.code,
+        category: updatedProduct.category
     });
     setEditingProduct(null);
   };
@@ -636,7 +718,6 @@ export default function App() {
              </div>
            </div>
 
-           {/* Mobile Floating Cart Summary */}
            {cart.length > 0 && (
              <div className="md:hidden fixed bottom-4 left-4 right-4 bg-[#99042E] text-white p-4 rounded-xl shadow-xl flex justify-between items-center z-30 animate-slide-up cursor-pointer" onClick={() => setMobileView('CART')}>
                 <div className="flex flex-col">
