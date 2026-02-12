@@ -3,7 +3,7 @@ import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileTex
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
-import { collection, addDoc, onSnapshot, doc, updateDoc, writeBatch, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, query, orderBy } from 'firebase/firestore';
 
 // --- 1. TYPES & INTERFACES ---
 export type MessageRole = 'user' | 'model';
@@ -18,7 +18,7 @@ export interface ChatMessage {
 export interface Product {
   id?: string;
   code: string;
-  category?: string; // Added optional category field
+  category?: string;
   name: string;
   price: number;
   stock: number;
@@ -88,7 +88,6 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('10');
 
-  // Smart Autofill: When category changes, update the code prefix
   useEffect(() => {
     const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
     let prefix = 'RNG';
@@ -116,59 +115,57 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
         <div className="bg-white p-6 rounded-lg w-80 shadow-xl">
         <h2 className="font-bold mb-4 text-lg">Add New Product</h2>
         <div className="space-y-3 mb-4">
-            {/* 1. Category */}
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Category</label>
-                <select 
-                    className="w-full border p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                >
-                    <option value="Rings">Rings</option>
-                    <option value="Necklace">Necklace</option>
-                    <option value="Bracelet">Bracelet</option>
-                </select>
+                {/* Updated Select Styling to match inputs exactly */}
+                <div className="relative">
+                    <select 
+                        className="w-full border border-gray-300 p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none appearance-none text-gray-800"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                    >
+                        <option value="Rings">Rings</option>
+                        <option value="Necklace">Necklace</option>
+                        <option value="Bracelet">Bracelet</option>
+                    </select>
+                    {/* Custom Arrow to replace ugly default browser arrow */}
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <ChevronRight className="rotate-90" size={16} />
+                    </div>
+                </div>
             </div>
-
-            {/* 2. Unique Code */}
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Unique Code</label>
                 <input 
-                    className="w-full border p-2 rounded bg-gray-50 font-mono text-sm" 
+                    className="w-full border border-gray-300 p-2 rounded bg-gray-50 font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" 
                     placeholder="Unique ID" 
                     value={code} 
                     onChange={e => setCode(e.target.value)} 
                 />
             </div>
-
-            {/* 3. Product Name */}
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Product Name</label>
                 <input 
-                    className="w-full border p-2 rounded" 
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                     placeholder="e.g. Gold Band" 
                     value={name} 
                     onChange={e => setName(e.target.value)} 
                 />
             </div>
-
-            {/* 4. Price */}
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Price</label>
                 <input 
-                    className="w-full border p-2 rounded" 
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                     type="number" 
                     placeholder="0.00" 
                     value={price} 
                     onChange={e => setPrice(e.target.value)} 
                 />
             </div>
-
-            {/* 5. Quantity */}
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
                 <input 
-                    className="w-full border p-2 rounded" 
+                    className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                     type="number" 
                     placeholder="Qty" 
                     value={stock} 
@@ -201,31 +198,36 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
                 <div className="space-y-3">
                     <div>
                         <label className="text-xs font-bold text-gray-500">Category</label>
-                        <select 
-                            className="w-full border p-2 rounded bg-white"
-                            value={category}
-                            onChange={(e) => setCategory(e.target.value)}
-                        >
-                            <option value="Rings">Rings</option>
-                            <option value="Necklace">Necklace</option>
-                            <option value="Bracelet">Bracelet</option>
-                        </select>
+                        <div className="relative">
+                            <select 
+                                className="w-full border border-gray-300 p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none appearance-none text-gray-800"
+                                value={category}
+                                onChange={(e) => setCategory(e.target.value)}
+                            >
+                                <option value="Rings">Rings</option>
+                                <option value="Necklace">Necklace</option>
+                                <option value="Bracelet">Bracelet</option>
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                                <ChevronRight className="rotate-90" size={16} />
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Unique ID (Code)</label>
-                        <input className="w-full border p-2 rounded font-mono text-sm" value={code} onChange={e => setCode(e.target.value)} />
+                        <input className="w-full border border-gray-300 p-2 rounded font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" value={code} onChange={e => setCode(e.target.value)} />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Name</label>
-                        <input className="w-full border p-2 rounded" value={name} onChange={e => setName(e.target.value)} />
+                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" value={name} onChange={e => setName(e.target.value)} />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Price</label>
-                        <input className="w-full border p-2 rounded" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} />
+                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={price} onChange={e => setPrice(Number(e.target.value))} />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500">Stock</label>
-                        <input className="w-full border p-2 rounded" type="number" value={stock} onChange={e => setStock(Number(e.target.value))} />
+                        <input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={stock} onChange={e => setStock(Number(e.target.value))} />
                     </div>
                 </div>
 
@@ -288,12 +290,12 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
                     <h2 className="font-bold text-lg flex items-center gap-2"><RotateCcw size={20} /> Sales Overview</h2>
                     <div className="flex gap-2">
                         {/* THIS IS THE UPLOAD DATA BUTTON */}
-                        <button onClick={onSeed} className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-200 transition" title="Upload Test Data">
-                            <CloudUpload size={16} /> <span className="hidden sm:inline text-xs font-bold">Data</span>
+                        <button onClick={onSeed} className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200" title="Upload Test Data">
+                            <CloudUpload size={16} /> <span className="hidden sm:inline">Data</span>
                         </button>
                         
                         {/* THIS IS THE REFRESH BUTTON */}
-                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-200 transition" title="Refresh Data">
+                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1 rounded hover:bg-gray-200" title="Refresh Data">
                             <RefreshCw size={16} /> <span className="hidden sm:inline text-xs font-bold text-gray-600">Refresh</span>
                         </button>
                         
@@ -527,8 +529,19 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (product: Product) => {
-    alert(`To delete ${product.name} safely in this demo, just set Stock to 0 via Edit.`);
-    setEditingProduct(null);
+    if (!product.id) {
+        alert("Error: Cannot delete product without ID");
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to permanently delete ${product.name}?`)) {
+        try {
+            await deleteDoc(doc(db, "inventory", product.id));
+            setEditingProduct(null); // Close the modal
+        } catch (e: any) {
+            alert("Error deleting product: " + e.message);
+        }
+    }
   };
 
   const handleRestockProduct = async (product: Product, qty: number) => {
