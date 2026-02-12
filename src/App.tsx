@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -45,6 +45,14 @@ export interface AppState {
 export interface CartItem extends Product {
   cartQuantity: number;
 }
+
+const INITIAL_INVENTORY: Product[] = [
+  { code: 'GFT001', name: 'Custom Mug', price: 1500, stock: 20 },
+  { code: 'GFT002', name: 'Keyring', price: 500, stock: 50 },
+  { code: 'GFT003', name: 'T-Shirt (L)', price: 2500, stock: 10 },
+  { code: 'GFT004', name: 'Gift Box', price: 800, stock: 5 },
+  { code: 'GFT005', name: 'Engraved Pen', price: 1200, stock: 0 },
+];
 
 const INITIAL_CUSTOMERS: Customer[] = [
   { id: 'CUST001', name: 'John Doe', points: 150 },
@@ -181,7 +189,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     );
 };
 
-const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void }) => {
+const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void, onSeed: () => void }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const weekStart = new Date(new Date().setDate(now.getDate() - 7)).getTime();
@@ -197,10 +205,15 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onC
                 <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <h2 className="font-bold text-lg flex items-center gap-2"><RotateCcw size={20} /> Sales Overview</h2>
                     <div className="flex gap-2">
-                        {/* THIS IS THE REFRESH BUTTON */}
-                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-200 transition" title="Refresh Data from Server">
+                        {/* THIS IS THE UPLOAD DATA BUTTON */}
+                        <button onClick={onSeed} className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded hover:bg-blue-200 transition" title="Upload Test Data">
+                            <CloudUpload size={16} /> <span className="text-xs font-bold">Upload Data</span>
+                        </button>
+                        
+                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-200 transition" title="Refresh Data">
                             <RefreshCw size={16} /> <span className="text-xs font-bold text-gray-600">Refresh</span>
                         </button>
+                        
                         <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded"><X size={20} /></button>
                     </div>
                 </div>
@@ -340,12 +353,38 @@ export default function App() {
   }, [customerId]);
 
   const handleRefreshData = () => {
-    // FORCE RELOAD TO RESYNC
     window.location.reload();
   };
 
   const handleReverseSale = (_saleId: string) => {
       alert("Reversing sales is disabled in Sync Mode to prevent data conflicts.");
+  };
+
+  // --- THE "LOUD" UPLOAD BUTTON LOGIC ---
+  const handleSeedData = async () => {
+      // 1. Ask permission
+      if (!confirm("This will upload Initial Data to Firebase. Continue?")) return;
+
+      try {
+          const batch = writeBatch(db);
+          INITIAL_INVENTORY.forEach(p => {
+              // Creating a reference to the 'inventory' collection
+              const ref = doc(collection(db, "inventory"));
+              batch.set(ref, p);
+          });
+
+          // 2. Try to commit (this is where it hits Firebase)
+          await batch.commit();
+          
+          // 3. Success Message
+          alert("✅ SUCCESS: Data has been sent to Firebase!");
+          window.location.reload();
+
+      } catch (error: any) {
+          // 4. ERROR MESSAGE - This tells you WHY it failed
+          console.error("Firebase Error:", error);
+          alert("❌ FAILED: " + error.message + "\n\nCheck your API Keys and Internet.");
+      }
   };
 
   const addToCart = (product: Product) => {
@@ -391,8 +430,12 @@ export default function App() {
   // --- FIREBASE WRITE HANDLERS ---
 
   const handleAddProduct = async (product: Product) => {
-      await addDoc(collection(db, "inventory"), product);
-      setActiveModal(null);
+      try {
+        await addDoc(collection(db, "inventory"), product);
+        setActiveModal(null);
+      } catch (e: any) {
+          alert("Error adding product: " + e.message);
+      }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
@@ -473,9 +516,9 @@ export default function App() {
       setLastReceipt(response);
       setShowReceiptModal(true);
       clearCart();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Error processing sale.");
+      alert("Error processing sale: " + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -544,7 +587,7 @@ export default function App() {
                     <div className="col-span-full flex flex-col items-center justify-center text-gray-400 mt-10">
                         <PackagePlus size={48} className="mb-2 opacity-50" />
                         <p>No products found.</p>
-                        <p className="text-xs">Add a product to get started.</p>
+                        <p className="text-xs">Add a product or check connection.</p>
                     </div>
                 ) : (
                     filteredInventory.map(product => (
@@ -777,6 +820,7 @@ export default function App() {
             onClose={() => setActiveModal(null)} 
             onReverseSale={handleReverseSale}
             onRefresh={handleRefreshData}
+            onSeed={handleSeedData}
          />
       )}
 
