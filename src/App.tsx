@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -117,7 +117,6 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
         <div className="space-y-3 mb-4">
             <div>
                 <label className="text-xs font-bold text-gray-500 uppercase">Category</label>
-                {/* Updated Select Styling to match inputs exactly */}
                 <div className="relative">
                     <select 
                         className="w-full border border-gray-300 p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none appearance-none text-gray-800"
@@ -128,7 +127,6 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
                         <option value="Necklace">Necklace</option>
                         <option value="Bracelet">Bracelet</option>
                     </select>
-                    {/* Custom Arrow to replace ugly default browser arrow */}
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                         <ChevronRight className="rotate-90" size={16} />
                     </div>
@@ -274,75 +272,184 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
 };
 
 const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void, onSeed: () => void }) => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const weekStart = new Date(new Date().setDate(now.getDate() - 7)).getTime();
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const todaySales = sales.filter(s => s.timestamp >= todayStart).reduce((acc, curr) => acc + curr.total, 0);
-    const weekSales = sales.filter(s => s.timestamp >= weekStart).reduce((acc, curr) => acc + curr.total, 0);
-    const monthSales = sales.filter(s => s.timestamp >= monthStart).reduce((acc, curr) => acc + curr.total, 0);
+    // --- Filter Logic ---
+    const filteredSales = sales.filter(s => {
+        const saleDate = new Date(s.timestamp);
+        const now = new Date();
+        let matchesTime = true;
+
+        if (activeTab === 'today') {
+            matchesTime = saleDate.toDateString() === now.toDateString();
+        } else if (activeTab === 'week') {
+            const weekAgo = new Date();
+            weekAgo.setDate(now.getDate() - 7);
+            matchesTime = saleDate >= weekAgo;
+        } else if (activeTab === 'month') {
+            matchesTime = saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
+        }
+
+        const matchesSearch = s.customerId.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                              s.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              s.productCode.toLowerCase().includes(searchQuery.toLowerCase());
+
+        return matchesTime && matchesSearch;
+    });
+
+    // --- Metrics Calculations ---
+    const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
+    const totalOrders = filteredSales.length;
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl w-full max-w-3xl h-[600px] flex flex-col shadow-2xl overflow-hidden">
-                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                    <h2 className="font-bold text-lg flex items-center gap-2"><RotateCcw size={20} /> Sales Overview</h2>
-                    <div className="flex gap-2">
-                        {/* THIS IS THE UPLOAD DATA BUTTON */}
-                        <button onClick={onSeed} className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200" title="Upload Test Data">
-                            <CloudUpload size={16} /> <span className="hidden sm:inline">Data</span>
+            <div className="bg-white rounded-xl w-full max-w-5xl h-[80vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in font-sans">
+                
+                {/* --- 1. HEADER (Dark Red) --- */}
+                <div className="bg-[#99042E] p-4 flex justify-between items-center text-white shrink-0">
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                        <RotateCcw size={20} /> Sales Dashboard
+                    </h2>
+                    <div className="flex gap-3">
+                        <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
+                            <CloudUpload size={18} />
                         </button>
-                        
-                        {/* THIS IS THE REFRESH BUTTON */}
-                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1 rounded hover:bg-gray-200" title="Refresh Data">
-                            <RefreshCw size={16} /> <span className="hidden sm:inline text-xs font-bold text-gray-600">Refresh</span>
+                        <button onClick={onRefresh} className="hover:bg-white/10 p-2 rounded transition" title="Refresh">
+                            <RefreshCw size={18} />
                         </button>
-                        
-                        <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded"><X size={20} /></button>
+                        <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition">
+                            <X size={20} />
+                        </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 border-b border-gray-200">
-                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-1">Today's Sales</div>
-                        <div className="text-2xl font-bold text-[#99042E]">${todaySales.toLocaleString()}</div>
+                {/* --- 2. CONTROLS BAR (Tabs & Search) --- */}
+                <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row gap-4 justify-between bg-white shrink-0">
+                    {/* Tabs */}
+                    <div className="flex bg-gray-100 p-1 rounded-lg self-start">
+                        {(['today', 'week', 'month', 'all'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-1.5 rounded-md text-sm font-bold capitalize transition-all ${
+                                    activeTab === tab 
+                                    ? 'bg-[#99042E] text-white shadow-sm' 
+                                    : 'text-gray-500 hover:text-gray-900'
+                                }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
                     </div>
-                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-1">This Week</div>
-                        <div className="text-2xl font-bold text-gray-800">${weekSales.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                        <div className="text-gray-500 text-xs font-bold uppercase mb-1">This Month</div>
-                        <div className="text-2xl font-bold text-gray-800">${monthSales.toLocaleString()}</div>
+
+                    {/* Search */}
+                    <div className="relative w-full md:w-64">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                        <input 
+                            className="w-full bg-gray-800 text-white rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400"
+                            placeholder="Search sales..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
-                    <h3 className="font-bold text-gray-700 mb-3 ml-1">Transaction History</h3>
-                    <div className="space-y-2">
-                        {sales.length === 0 ? (
-                            <div className="text-center text-gray-400 mt-10">No sales recorded yet.</div>
-                        ) : (
-                            sales.map(s => (
-                                <div key={s.id} className="bg-white border border-gray-200 rounded-lg p-3 flex justify-between items-center shadow-sm">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-green-100 p-2 rounded-full text-green-600">
-                                            <DollarSign size={16} />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-gray-800">${s.total.toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500">{s.date} • ID: {s.id.slice(0,6)}</div>
-                                            <div className="text-[10px] text-gray-400 font-mono mt-1">{s.productCode}</div>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => onReverseSale(s.id)} className="text-red-500 text-xs border border-red-200 px-3 py-1.5 rounded hover:bg-red-50 font-bold transition opacity-50 cursor-not-allowed" disabled title="Reverse not supported in Sync Mode">
-                                        Reverse
-                                    </button>
-                                </div>
-                            ))
-                        )}
+                {/* --- 3. METRICS CARDS --- */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 border-b border-gray-200 shrink-0">
+                    {/* Revenue Card */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="bg-green-100 p-3 rounded-full text-green-600">
+                            <DollarSign size={24} />
+                        </div>
+                        <div>
+                            <div className="text-gray-500 text-xs font-bold uppercase">Total Revenue</div>
+                            <div className="text-2xl font-bold text-gray-800">${totalRevenue.toLocaleString()}</div>
+                        </div>
                     </div>
+
+                    {/* Orders Card */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="bg-blue-100 p-3 rounded-full text-blue-600">
+                            <ShoppingCart size={24} />
+                        </div>
+                        <div>
+                            <div className="text-gray-500 text-xs font-bold uppercase">Total Orders</div>
+                            <div className="text-2xl font-bold text-gray-800">{totalOrders}</div>
+                        </div>
+                    </div>
+
+                    {/* Avg Value Card */}
+                    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="bg-orange-100 p-3 rounded-full text-orange-600">
+                            <Calendar size={24} />
+                        </div>
+                        <div>
+                            <div className="text-gray-500 text-xs font-bold uppercase">Avg Order Value</div>
+                            <div className="text-2xl font-bold text-gray-800">${avgOrderValue.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- 4. DATA TABLE --- */}
+                <div className="flex-1 overflow-auto bg-white relative">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
+                                    Date/Time <ArrowUpDown size={12} />
+                                </th>
+                                <th className="px-6 py-3 font-bold">Items</th>
+                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
+                                    Customer <ArrowUpDown size={12} />
+                                </th>
+                                <th className="px-6 py-3 font-bold flex items-center gap-1 cursor-pointer hover:bg-gray-200">
+                                    Total <ArrowUpDown size={12} />
+                                </th>
+                                <th className="px-6 py-3 font-bold text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredSales.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="py-10 text-center text-gray-400">
+                                        No sales found for this period.
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredSales.map((sale) => (
+                                    <tr key={sale.id} className="hover:bg-gray-50 transition">
+                                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                                            {sale.date}
+                                            <div className="text-[10px] text-gray-400 font-mono mt-0.5">{sale.id.slice(0, 8)}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-600 max-w-xs truncate" title={sale.productCode}>
+                                            {sale.productCode.split('|').join(', ')}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-600">
+                                            {sale.customerId === 'GUEST' ? (
+                                                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold">GUEST</span>
+                                            ) : (
+                                                <span className="text-[#99042E] font-medium">{sale.customerId}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 font-bold text-gray-800">
+                                            ${sale.total.toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button 
+                                                onClick={() => onReverseSale(sale.id)} 
+                                                className="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 px-3 py-1 rounded text-xs font-bold transition"
+                                            >
+                                                Reverse
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -439,8 +546,16 @@ export default function App() {
     window.location.reload();
   };
 
-  const handleReverseSale = (_saleId: string) => {
-      alert("Reversing sales is disabled in Sync Mode to prevent data conflicts. Sale ID: " + _saleId);
+  const handleReverseSale = async (saleId: string) => {
+      // Allow reversing if specific ID provided (simple logic for now)
+      if(confirm("Are you sure you want to reverse this sale? Stock will NOT be restored automatically in this version.")) {
+          try {
+            await deleteDoc(doc(db, "sales", saleId));
+            alert("Sale record removed.");
+          } catch(e: any) {
+              alert("Error removing sale: " + e.message);
+          }
+      }
   };
 
   // --- THE "LOUD" UPLOAD BUTTON LOGIC ---
@@ -537,7 +652,7 @@ export default function App() {
     if (confirm(`Are you sure you want to permanently delete ${product.name}?`)) {
         try {
             await deleteDoc(doc(db, "inventory", product.id));
-            setEditingProduct(null); // Close the modal
+            setEditingProduct(null); 
         } catch (e: any) {
             alert("Error deleting product: " + e.message);
         }
@@ -627,7 +742,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       
-      {/* --- HEADER (UPDATED FOR MOBILE VISIBILITY) --- */}
+      {/* --- HEADER --- */}
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
@@ -637,7 +752,6 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           {/* All buttons now visible on mobile as icons */}
            <button onClick={() => setActiveModal('SALES')} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 transition">
               <RotateCcw size={20} />
            </button>
