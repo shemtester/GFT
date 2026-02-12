@@ -3,12 +3,7 @@ import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileTex
 import { v4 as uuidv4 } from 'uuid';
 
 // --- 1. TYPES & INTERFACES ---
-export const MessageRole = {
-  USER: 'user',
-  MODEL: 'model',
-} as const;
-
-export type MessageRole = (typeof MessageRole)[keyof typeof MessageRole];
+export type MessageRole = 'user' | 'model';
 
 export interface ChatMessage {
   id: string;
@@ -68,8 +63,12 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
     <div className="p-4 space-y-3">
       {messages.map((m, i) => {
         const isModel = m.role === 'model';
+        const bubbleClass = isModel 
+          ? "bg-gray-100 text-gray-800" 
+          : "bg-[#99042E] text-white ml-auto max-w-[80%]";
+          
         return (
-          <div key={i} className={`p-3 rounded-lg text-sm ${isModel ? 'bg-gray-100 text-gray-800' : 'bg-[#99042E] text-white ml-auto max-w-[80%]'}`}>
+          <div key={i} className={`p-3 rounded-lg text-sm ${bubbleClass}`}>
             <p className="whitespace-pre-wrap">{m.text || (m.parts && m.parts[0].text)}</p>
           </div>
         );
@@ -190,7 +189,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
 const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const weekStart = new Date(new Date().setDate(new Date().getDate() - 7)).getTime();
+    const weekStart = new Date(now.setDate(now.getDate() - 7)).getTime();
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
     const todaySales = sales.filter(s => s.timestamp >= todayStart).reduce((acc, curr) => acc + curr.total, 0);
@@ -259,18 +258,13 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onC
 // --- 4. MOCK SERVICE ---
 class GeminiService {
   state: AppState;
-  constructor(initialState: AppState, onStateChange: (newState: AppState) => void) {
+  constructor(initialState: AppState, _onStateChange: (newState: AppState) => void) {
     this.state = initialState;
-    // Just to use the parameter to satisfy build checks
-    console.log("Service started with", onStateChange);
   }
   syncState(newState: AppState) { this.state = newState; }
-  async sendMessage(history: any[], prompt: string): Promise<string> {
+  async sendMessage(_history: any[], prompt: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network
     
-    // Silence unused variable warning
-    console.log(history);
-
     if(prompt.includes("Record sale")) {
         const id = uuidv4();
         return `✅ **Receipt Generated**\nDate: ${new Date().toLocaleTimeString()}\nTrans ID: ${id.slice(0,8)}\n\nThank you for shopping at Gift Factory Ja!`;
@@ -318,14 +312,13 @@ export default function App() {
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
   useEffect(() => {
-  geminiServiceRef.current = new GeminiService(appState, (newState) => {
-    setAppState(newState);
-  });
-}, [appState]);
+    geminiServiceRef.current = new GeminiService(appState, (newState: AppState) => setAppState(newState));
+  }, []);
 
   useEffect(() => {
-  localStorage.setItem('pos_state', JSON.stringify(appState));
-}, [appState]);
+    localStorage.setItem('pos_state', JSON.stringify(appState));
+    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
+  }, [appState]);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('pos_cart');
@@ -537,21 +530,13 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 md:gap-4">
            {/* BUTTON 1: Dashboard */}
-          <button
-  onClick={() => setActiveModal('SALES')}
-  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition"
->
-  <RotateCcw size={16} />
-  <span className="hidden md:inline">Dashboard</span>
-</button>
+           <button onClick={() => setActiveModal('SALES')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
+              <RotateCcw size={16} /> Dashboard
+           </button>
            {/* BUTTON 2: Add Product */}
-          <button
-  onClick={() => setActiveModal('INVENTORY')}
-  className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 md:px-4 py-2 rounded-lg text-sm font-medium transition"
->
-  <PlusCircle size={16} />
-  <span className="hidden md:inline">Add Product</span>
-</button>
+           <button onClick={() => setActiveModal('INVENTORY')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
+              <PlusCircle size={16} /> Add Product
+           </button>
            <button onClick={handleGenerateReport} className="flex items-center gap-2 bg-[#F79032] hover:bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
               <FileText size={16} /> <span className="hidden md:inline">EOD Report</span>
            </button>
@@ -838,7 +823,7 @@ export default function App() {
                </div>
                <div className="p-0 overflow-y-auto flex-1 bg-gray-50">
                   <ChatInterface 
-                     messages={[{id: 'res', role: MessageRole.MODEL, text: lastReceipt, timestamp: new Date()}]}
+                     messages={[{id: 'res', role: 'model', text: lastReceipt, timestamp: new Date()}]}
                   />
                </div>
                <div className="p-4 bg-white border-t border-gray-100 flex justify-end">
