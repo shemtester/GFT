@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+// Firebase Imports
+import { db } from './firebase';
+import { collection, addDoc, onSnapshot, doc, updateDoc, writeBatch, query, orderBy } from 'firebase/firestore';
 
 // --- 1. TYPES & INTERFACES ---
 export type MessageRole = 'user' | 'model';
@@ -13,6 +16,7 @@ export interface ChatMessage {
   parts?: { text: string }[];
 }
 export interface Product {
+  id?: string;
   code: string;
   name: string;
   price: number;
@@ -42,15 +46,6 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA ---
-const INITIAL_INVENTORY: Product[] = [
-  { code: 'GFT001', name: 'Custom Mug', price: 1500, stock: 20 },
-  { code: 'GFT002', name: 'Keyring', price: 500, stock: 50 },
-  { code: 'GFT003', name: 'T-Shirt (L)', price: 2500, stock: 10 },
-  { code: 'GFT004', name: 'Gift Box', price: 800, stock: 5 },
-  { code: 'GFT005', name: 'Engraved Pen', price: 1200, stock: 0 },
-];
-
 const INITIAL_CUSTOMERS: Customer[] = [
   { id: 'CUST001', name: 'John Doe', points: 150 },
   { id: 'CUST002', name: 'Jane Smith', points: 50 },
@@ -77,21 +72,21 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product[]) => void }) => {
-  const [code, setCode] = useState('NEW' + Math.floor(Math.random() * 1000));
+const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product) => void }) => {
+  const [code, setCode] = useState('GFT' + Math.floor(Math.random() * 1000));
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('10');
 
   const handleSave = () => {
     if (!name || !price) return alert("Please fill in Name and Price");
-    const newProd = { 
+    const newProd: Product = { 
         code: code || 'UNK', 
         name, 
         price: Number(price), 
         stock: Number(stock) 
     };
-    onSave([newProd]);
+    onSave(newProd);
   };
 
   return (
@@ -111,7 +106,7 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
   );
 };
 
-const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Product, onClose: () => void, onSave: (code: string, p: Product) => void, onDelete: (code: string) => void }) => {
+const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Product, onClose: () => void, onSave: (p: Product) => void, onDelete: (p: Product) => void }) => {
     const [code, setCode] = useState(product.code);
     const [name, setName] = useState(product.name);
     const [price, setPrice] = useState(product.price);
@@ -145,21 +140,21 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
                 </div>
 
                 <div className="mt-6 flex gap-2">
-                    <button onClick={() => onDelete(product.code)} className="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200">Delete</button>
-                    <button onClick={() => onSave(product.code, { code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-2 rounded font-bold hover:bg-[#7a0325]">Save</button>
+                    <button onClick={() => onDelete(product)} className="flex-1 bg-red-100 text-red-600 py-2 rounded font-bold hover:bg-red-200">Delete</button>
+                    <button onClick={() => onSave({ ...product, code, name, price, stock })} className="flex-[2] bg-[#99042E] text-white py-2 rounded font-bold hover:bg-[#7a0325]">Save</button>
                 </div>
             </div>
         </div>
     );
 };
 
-const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClose: () => void, onRestock: (code: string, qty: number) => void }) => {
+const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClose: () => void, onRestock: (p: Product, qty: number) => void }) => {
     const [amount, setAmount] = useState('');
 
     const handleRestock = () => {
         const qty = parseInt(amount);
         if (isNaN(qty) || qty <= 0) return alert("Please enter a valid quantity");
-        onRestock(product.code, qty);
+        onRestock(product, qty);
     };
 
     return (
@@ -189,7 +184,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
 const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void }) => {
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const weekStart = new Date(now.setDate(now.getDate() - 7)).getTime();
+    const weekStart = new Date(new Date().setDate(now.getDate() - 7)).getTime();
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
     const todaySales = sales.filter(s => s.timestamp >= todayStart).reduce((acc, curr) => acc + curr.total, 0);
@@ -202,8 +197,9 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onC
                 <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <h2 className="font-bold text-lg flex items-center gap-2"><RotateCcw size={20} /> Sales Overview</h2>
                     <div className="flex gap-2">
-                        <button onClick={onRefresh} className="p-2 bg-white border border-gray-300 rounded hover:bg-gray-100" title="Refresh Data">
-                            <RefreshCw size={16} />
+                        {/* THIS IS THE REFRESH BUTTON */}
+                        <button onClick={onRefresh} className="flex items-center gap-2 bg-gray-100 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-200 transition" title="Refresh Data from Server">
+                            <RefreshCw size={16} /> <span className="text-xs font-bold text-gray-600">Refresh</span>
                         </button>
                         <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded"><X size={20} /></button>
                     </div>
@@ -242,8 +238,8 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onC
                                             <div className="text-[10px] text-gray-400 font-mono mt-1">{s.productCode}</div>
                                         </div>
                                     </div>
-                                    <button onClick={() => onReverseSale(s.id)} className="text-red-500 text-xs border border-red-200 px-3 py-1.5 rounded hover:bg-red-50 font-bold transition">
-                                        Reverse Sale
+                                    <button onClick={() => onReverseSale(s.id)} className="text-red-500 text-xs border border-red-200 px-3 py-1.5 rounded hover:bg-red-50 font-bold transition opacity-50 cursor-not-allowed" disabled title="Reverse not supported in Sync Mode">
+                                        Reverse
                                     </button>
                                 </div>
                             ))
@@ -258,12 +254,12 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh }: { onC
 // --- 4. MOCK SERVICE ---
 class GeminiService {
   state: AppState;
-  constructor(initialState: AppState, _onStateChange: (newState: AppState) => void) {
+  constructor(initialState: AppState) {
     this.state = initialState;
   }
   syncState(newState: AppState) { this.state = newState; }
   async sendMessage(_history: any[], prompt: string): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network
+    await new Promise(resolve => setTimeout(resolve, 800)); 
     
     if(prompt.includes("Record sale")) {
         const id = uuidv4();
@@ -272,11 +268,9 @@ class GeminiService {
     if(prompt.includes("Report")) {
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        
         const todaySales = this.state.sales.filter(s => s.timestamp >= startOfDay);
         const totalValue = todaySales.reduce((acc, curr) => acc + curr.total, 0);
         const count = todaySales.length;
-
         return `📊 **End of Day Report**\nDate: ${now.toLocaleDateString()}\n------------------------------\n✅ Total Sales: $${totalValue.toLocaleString()}\n✅ Transactions: ${count}\n\nGood work today!`;
     }
     return "AI processing complete.";
@@ -286,11 +280,7 @@ class GeminiService {
 // --- 5. MAIN APP COMPONENT ---
 
 const loadState = (): AppState => {
-  const saved = localStorage.getItem('pos_state');
-  if (saved) {
-    try { return JSON.parse(saved); } catch (e) { console.error("Failed to parse", e); }
-  }
-  return { inventory: INITIAL_INVENTORY, customers: INITIAL_CUSTOMERS, sales: [] };
+  return { inventory: [], customers: INITIAL_CUSTOMERS, sales: [] };
 };
 
 export default function App() {
@@ -302,7 +292,6 @@ export default function App() {
   const [usePoints, setUsePoints] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -311,63 +300,52 @@ export default function App() {
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
+  // --- FIREBASE SYNC ---
   useEffect(() => {
-    geminiServiceRef.current = new GeminiService(appState, (newState: AppState) => setAppState(newState));
+    // 1. Listen to Inventory
+    const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
+        const products: Product[] = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        } as Product));
+        setAppState(prev => ({ ...prev, inventory: products }));
+    });
+
+    // 2. Listen to Sales
+    const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
+    const unsubSales = onSnapshot(q, (snapshot) => {
+        const salesData: SalesRecord[] = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        } as SalesRecord));
+        setAppState(prev => ({ ...prev, sales: salesData }));
+    });
+
+    return () => {
+        unsubInv();
+        unsubSales();
+    };
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('pos_state', JSON.stringify(appState));
+    geminiServiceRef.current = new GeminiService(appState);
+  }, []);
+
+  useEffect(() => {
     if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
   }, [appState]);
-
-  useEffect(() => {
-    const savedCart = localStorage.getItem('pos_cart');
-    if (savedCart) {
-        try { setCart(JSON.parse(savedCart)); } catch (e) { console.error("Failed to load cart", e); }
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('pos_cart', JSON.stringify(cart));
-  }, [cart]);
 
   useEffect(() => {
      setUsePoints(false);
   }, [customerId]);
 
   const handleRefreshData = () => {
-    const freshState = loadState();
-    setAppState(freshState);
+    // FORCE RELOAD TO RESYNC
+    window.location.reload();
   };
 
-  const handleReverseSale = (saleId: string) => {
-    const saleToReverse = appState.sales.find(s => s.id === saleId);
-    if (!saleToReverse) return;
-    
-    const itemsStr = saleToReverse.productCode.split('|');
-    const itemsToRestore = itemsStr.map(s => {
-        const match = s.match(/(.+)\((\d+)\)/);
-        if (match) return { code: match[1], qty: parseInt(match[2]) };
-        return null;
-    }).filter(i => i !== null) as {code: string, qty: number}[];
-
-    const newInventory = appState.inventory.map(p => {
-        const restoreItem = itemsToRestore.find(i => i.code === p.code);
-        if (restoreItem) {
-            return { ...p, stock: p.stock + restoreItem.qty };
-        }
-        return p;
-    });
-
-    const newSales = appState.sales.filter(s => s.id !== saleId);
-
-    setAppState(prev => ({ 
-        ...prev, 
-        inventory: newInventory,
-        sales: newSales 
-    }));
-    
-    alert("Sale Reversed & Stock Restored!");
+  const handleReverseSale = (_saleId: string) => {
+      alert("Reversing sales is disabled in Sync Mode to prevent data conflicts.");
   };
 
   const addToCart = (product: Product) => {
@@ -408,40 +386,40 @@ export default function App() {
     setDiscountInput('');
     setUsePoints(false);
     setMobileView('PRODUCTS');
-    localStorage.removeItem('pos_cart');
   };
 
-  const handleUpdateProduct = (originalCode: string, updatedProduct: Product) => {
-    if (originalCode !== updatedProduct.code) {
-        const exists = appState.inventory.some(p => p.code === updatedProduct.code);
-        if (exists) {
-            alert(`Product with code ${updatedProduct.code} already exists.`);
-            return;
-        }
-    }
-    setAppState(prev => ({
-        ...prev,
-        inventory: prev.inventory.map(p => p.code === originalCode ? updatedProduct : p)
-    }));
+  // --- FIREBASE WRITE HANDLERS ---
+
+  const handleAddProduct = async (product: Product) => {
+      await addDoc(collection(db, "inventory"), product);
+      setActiveModal(null);
+  };
+
+  const handleUpdateProduct = async (updatedProduct: Product) => {
+    if (!updatedProduct.id) return;
+    const ref = doc(db, "inventory", updatedProduct.id);
+    await updateDoc(ref, { 
+        name: updatedProduct.name,
+        price: updatedProduct.price,
+        stock: updatedProduct.stock,
+        code: updatedProduct.code
+    });
     setEditingProduct(null);
   };
 
-  const handleDeleteProduct = (code: string) => {
-    setAppState(prev => ({
-        ...prev,
-        inventory: prev.inventory.filter(p => p.code !== code)
-    }));
+  const handleDeleteProduct = async (product: Product) => {
+    alert("To delete safely in this demo, just set Stock to 0 via Edit.");
     setEditingProduct(null);
   };
 
-  const handleRestockProduct = (code: string, qty: number) => {
-      setAppState(prev => ({
-          ...prev,
-          inventory: prev.inventory.map(p => p.code === code ? { ...p, stock: p.stock + qty } : p)
-      }));
+  const handleRestockProduct = async (product: Product, qty: number) => {
+      if (!product.id) return;
+      const ref = doc(db, "inventory", product.id);
+      await updateDoc(ref, { stock: product.stock + qty });
       setRestockingProduct(null);
   };
 
+  // --- Computed ---
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.cartQuantity), 0);
   let estimatedDiscount = 0;
   if (discountInput.includes('%')) {
@@ -461,14 +439,6 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    const newInventory = appState.inventory.map(item => {
-        const cartItem = cart.find(c => c.code === item.code);
-        if (cartItem) {
-            return { ...item, stock: Math.max(0, item.stock - cartItem.cartQuantity) };
-        }
-        return item;
-    });
-
     const now = new Date();
     const newSale: SalesRecord = {
         id: uuidv4(),
@@ -482,15 +452,25 @@ export default function App() {
     };
 
     try {
+      // 1. Save Sale to Firestore
+      await addDoc(collection(db, "sales"), newSale);
+
+      // 2. Update Inventory in Firestore (Batch)
+      const batch = writeBatch(db);
+      
+      for (const cartItem of cart) {
+          const productDoc = appState.inventory.find(p => p.code === cartItem.code);
+          if (productDoc && productDoc.id) {
+              const ref = doc(db, "inventory", productDoc.id);
+              const newStock = Math.max(0, productDoc.stock - cartItem.cartQuantity);
+              batch.update(ref, { stock: newStock });
+          }
+      }
+      
+      await batch.commit();
+
       const response = await geminiServiceRef.current!.sendMessage([], "Record sale");
       setLastReceipt(response);
-      
-      setAppState(prev => ({ 
-          ...prev, 
-          inventory: newInventory,
-          sales: [newSale, ...prev.sales] 
-      }));
-      
       setShowReceiptModal(true);
       clearCart();
     } catch (error) {
@@ -530,15 +510,15 @@ export default function App() {
         </div>
         <div className="flex items-center gap-2 md:gap-4">
            {/* BUTTON 1: Dashboard */}
-           <button onClick={() => setActiveModal('SALES')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
-              <RotateCcw size={16} /> Dashboard
+           <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-sm font-medium transition">
+              <RotateCcw size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
            {/* BUTTON 2: Add Product */}
-           <button onClick={() => setActiveModal('INVENTORY')} className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition">
-              <PlusCircle size={16} /> Add Product
+           <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg text-sm font-medium transition">
+              <PlusCircle size={18} /> <span className="hidden md:inline">Add Product</span>
            </button>
-           <button onClick={handleGenerateReport} className="flex items-center gap-2 bg-[#F79032] hover:bg-orange-600 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition">
-              <FileText size={16} /> <span className="hidden md:inline">EOD Report</span>
+           <button onClick={handleGenerateReport} className="flex items-center gap-2 bg-[#F79032] hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-sm transition">
+              <FileText size={18} /> <span className="hidden md:inline">EOD Report</span>
            </button>
         </div>
       </header>
@@ -560,61 +540,67 @@ export default function App() {
            
            <div className="flex-1 overflow-y-auto">
              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 pb-20 md:pb-0">
-                {filteredInventory.map(product => (
-                  <button 
-                    key={product.code}
-                    onClick={() => {
-                        if (product.stock > 0) addToCart(product);
-                    }}
-                    className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col items-start text-left group h-28 md:h-32 justify-between active:scale-95 ${product.stock === 0 ? 'border-gray-200 opacity-60 bg-gray-50' : 'border-gray-200 shadow-sm hover:shadow-md hover:border-[#99042E]'}`}
-                  >
-                     {/* Edit Button - Always Visible even if stock is 0 */}
-                     <div 
-                         onClick={(e) => {
-                             e.stopPropagation();
-                             setEditingProduct(product);
-                         }}
-                         className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-[#99042E] text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
-                         title="Edit Product"
-                     >
-                         <Pencil size={14} />
-                     </div>
-
-                     {/* REORDER BUTTON - Always Visible */}
-                     <div 
-                         onClick={(e) => {
-                             e.stopPropagation();
-                             setRestockingProduct(product);
-                         }}
-                         className="absolute top-2 right-10 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-green-600 text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
-                         title="Add Stock (Restock)"
-                     >
-                         <PackagePlus size={14} />
-                     </div>
-
-                     {product.stock > 0 && product.stock < 5 && (
-                       <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
-                          <AlertTriangle size={10} /> Low
-                       </div>
-                     )}
-                     {product.stock === 0 && (
-                        <div className="absolute top-2 left-2 bg-gray-800 text-white px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
-                          Out of Stock
+                {filteredInventory.length === 0 ? (
+                    <div className="col-span-full flex flex-col items-center justify-center text-gray-400 mt-10">
+                        <PackagePlus size={48} className="mb-2 opacity-50" />
+                        <p>No products found.</p>
+                        <p className="text-xs">Add a product to get started.</p>
+                    </div>
+                ) : (
+                    filteredInventory.map(product => (
+                    <button 
+                        key={product.code}
+                        onClick={() => {
+                            if (product.stock > 0) addToCart(product);
+                        }}
+                        className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col items-start text-left group h-28 md:h-32 justify-between active:scale-95 ${product.stock === 0 ? 'border-gray-200 opacity-60 bg-gray-50' : 'border-gray-200 shadow-sm hover:shadow-md hover:border-[#99042E]'}`}
+                    >
+                        <div 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingProduct(product);
+                            }}
+                            className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-[#99042E] text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
+                            title="Edit Product"
+                        >
+                            <Pencil size={14} />
                         </div>
-                     )}
 
-                     <div className="w-full mt-4 md:mt-0">
-                       <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
-                       <h3 className="font-bold text-gray-800 mt-1 md:mt-2 line-clamp-2 leading-snug group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
-                     </div>
-                     <div className="flex justify-between items-end w-full">
-                        <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${product.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
-                            Qty: {product.stock}
-                        </span>
-                     </div>
-                  </button>
-                ))}
+                        <div 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setRestockingProduct(product);
+                            }}
+                            className="absolute top-2 right-10 p-1.5 bg-white/90 backdrop-blur-sm hover:bg-green-600 text-gray-500 hover:text-white rounded-lg shadow-sm z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 cursor-pointer" 
+                            title="Add Stock (Restock)"
+                        >
+                            <PackagePlus size={14} />
+                        </div>
+
+                        {product.stock > 0 && product.stock < 5 && (
+                        <div className="absolute top-2 left-2 flex items-center gap-1 bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
+                            <AlertTriangle size={10} /> Low
+                        </div>
+                        )}
+                        {product.stock === 0 && (
+                            <div className="absolute top-2 left-2 bg-gray-800 text-white px-1.5 py-0.5 rounded text-[10px] font-bold z-10">
+                            Out of Stock
+                            </div>
+                        )}
+
+                        <div className="w-full mt-4 md:mt-0">
+                        <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
+                        <h3 className="font-bold text-gray-800 mt-1 md:mt-2 line-clamp-2 leading-snug group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
+                        </div>
+                        <div className="flex justify-between items-end w-full">
+                            <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${product.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
+                                Qty: {product.stock}
+                            </span>
+                        </div>
+                    </button>
+                    ))
+                )}
              </div>
            </div>
 
@@ -782,10 +768,7 @@ export default function App() {
 
       {/* --- Modals --- */}
       {activeModal === 'INVENTORY' && (
-        <AddInventoryModal onClose={() => setActiveModal(null)} onSave={(products: any) => {
-           setAppState(prev => ({...prev, inventory: [...prev.inventory, ...products]}));
-           setActiveModal(null);
-        }} />
+        <AddInventoryModal onClose={() => setActiveModal(null)} onSave={handleAddProduct} />
       )}
       
       {activeModal === 'SALES' && (
