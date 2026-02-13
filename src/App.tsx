@@ -69,12 +69,12 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
       {messages.map((m, i) => {
         const isModel = m.role === 'model';
         const bubbleClass = isModel 
-          ? "bg-gray-100 text-gray-800" 
+          ? "bg-gray-100 text-gray-800 border border-gray-200" 
           : "bg-[#99042E] text-white ml-auto max-w-[80%]";
           
         return (
-          <div key={i} className={`p-3 rounded-lg text-sm ${bubbleClass}`}>
-            <p className="whitespace-pre-wrap font-mono text-xs md:text-sm">{m.text || (m.parts && m.parts[0].text)}</p>
+          <div key={i} className={`p-4 rounded-xl text-sm shadow-sm ${bubbleClass}`}>
+            <p className="whitespace-pre-wrap font-mono text-xs md:text-sm leading-relaxed">{m.text || (m.parts && m.parts[0].text)}</p>
           </div>
         );
       })}
@@ -406,14 +406,12 @@ class GeminiService {
   }
   syncState(newState: AppState) { this.state = newState; }
   
-  // NOTE: '_prompt' has underscore to tell TypeScript it's okay if we don't use it
   async sendMessage(_history: any[], _prompt: string, receiptDetail?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); 
     
     if (receiptDetail) {
         return receiptDetail;
     }
-    // Simple fallback
     return "AI processing complete.";
   }
 }
@@ -490,7 +488,7 @@ export default function App() {
      setUsePoints(false);
   }, [customerId]);
 
-  // --- SMART REVERSE: Restores Stock & Points ---
+  // --- SMART REVERSE ---
   const handleReverseSale = async (saleId: string) => {
       const sale = appState.sales.find(s => s.id === saleId);
       if (!sale) return alert("Sale not found locally.");
@@ -500,7 +498,6 @@ export default function App() {
       try {
           const batch = writeBatch(db);
 
-          // 1. Restore Inventory
           const items = sale.productCode.split('|');
           for (const itemStr of items) {
               const match = itemStr.match(/(.+)\((\d+)\)/);
@@ -515,18 +512,15 @@ export default function App() {
               }
           }
 
-          // 2. Revert Customer Points
           if (sale.customerId !== 'GUEST') {
               const customer = appState.customers.find(c => c.loyaltyId === sale.customerId);
               if (customer && customer.id) {
                   const custRef = doc(db, "customers", customer.id);
-                  // Subtract earned, Add back redeemed
                   const restoredPoints = customer.points - sale.pointsEarned + sale.pointsRedeemed;
                   batch.update(custRef, { points: Math.max(0, restoredPoints) });
               }
           }
 
-          // 3. Delete Sale
           const saleRef = doc(db, "sales", saleId);
           batch.delete(saleRef);
 
@@ -643,9 +637,7 @@ export default function App() {
      if (!isNaN(flat)) estimatedDiscount = flat;
   }
   
-  // --- CUSTOMER LOOKUP LOGIC ---
   const activeCustomer = appState.customers.find(c => c.loyaltyId === customerId);
-  // REGEX: GFT + 6 digits (Total 9 chars)
   const isValidLoyaltyId = /^GFT\d{6}$/.test(customerId);
   const isNewCustomer = isValidLoyaltyId && !activeCustomer;
 
@@ -657,7 +649,6 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    // --- LOYALTY LOGIC: Floor(Total / 100) ---
     const pointsEarned = Math.floor(estimatedTotal / 100);
     const prevPoints = activeCustomer ? activeCustomer.points : 0;
     const newTotalPoints = prevPoints - pointsToRedeem + pointsEarned;
@@ -677,11 +668,9 @@ export default function App() {
     };
 
     try {
-      // 1. Save Sale
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
       
-      // 2. Update Inventory
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -691,14 +680,11 @@ export default function App() {
           }
       }
 
-      // 3. Update Customer Points (If registered)
       if (customerId !== '999' && customerId !== '') {
           if (activeCustomer && activeCustomer.id) {
-              // Existing
               const custRef = doc(db, "customers", activeCustomer.id);
               batch.update(custRef, { points: newTotalPoints });
           } else if (isValidLoyaltyId) {
-              // New
               const newCustRef = doc(collection(db, "customers"));
               batch.set(newCustRef, {
                   loyaltyId: customerId,
@@ -710,8 +696,9 @@ export default function App() {
 
       await batch.commit();
 
-      // 4. Generate Receipt String
-      const receiptText = `✅ **Transaction Complete**
+      // --- BRANDED RECEIPT ---
+      const receiptText = `🎁 **Gift Factory Ja.** 🎁
+      ~ POS Receipt ~
       
       **Loyalty Points:**
       Previous: ${prevPoints}
@@ -721,7 +708,9 @@ export default function App() {
       = **Total: ${isNewCustomer ? pointsEarned : newTotalPoints}**
       
       **Total Paid:** $${estimatedTotal.toLocaleString()}
-      `;
+      
+      Thank you for choosing Gift Factory Ja!
+      We appreciate your business.`;
 
       const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
       setLastReceipt(response);
