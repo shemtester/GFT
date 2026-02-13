@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown, RefreshCw, UserPlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -25,7 +25,7 @@ export interface Product {
 }
 export interface Customer {
   id?: string;
-  loyaltyId: string; // Format: GFT + 6 alphanumeric
+  loyaltyId: string; // Format: GFT + 6 digits
   name: string;
   points: number;
 }
@@ -48,7 +48,7 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA (Updated to GFT Format) ---
+// --- 2. MOCK DATA ---
 const INITIAL_INVENTORY: Product[] = [
   { code: 'RNG839201', category: 'Rings', name: 'Gold Band Ring', price: 1500, stock: 20 },
   { code: 'NK293841', category: 'Necklace', name: 'Silver Chain', price: 2500, stock: 10 },
@@ -650,7 +650,11 @@ export default function App() {
      if (!isNaN(flat)) estimatedDiscount = flat;
   }
   
+  // --- CUSTOMER LOOKUP LOGIC ---
   const activeCustomer = appState.customers.find(c => c.loyaltyId === customerId);
+  const isValidLoyaltyId = /^GFT\d{6}$/.test(customerId);
+  const isNewCustomer = isValidLoyaltyId && !activeCustomer;
+
   const intermediateTotal = Math.max(0, subtotal - estimatedDiscount);
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
@@ -659,7 +663,7 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    // --- LOYALTY LOGIC: Floor(Total / 100) ---
+    // --- LOYALTY LOGIC ---
     const pointsEarned = Math.floor(estimatedTotal / 100);
     const prevPoints = activeCustomer ? activeCustomer.points : 0;
     const newTotalPoints = prevPoints - pointsToRedeem + pointsEarned;
@@ -679,11 +683,10 @@ export default function App() {
     };
 
     try {
-      // 1. Save Sale
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
       
-      // 2. Update Inventory
+      // Inventory
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -693,15 +696,25 @@ export default function App() {
           }
       }
 
-      // 3. Update Customer Points (If registered)
-      if (activeCustomer && activeCustomer.id) {
-          const custRef = doc(db, "customers", activeCustomer.id);
-          batch.update(custRef, { points: newTotalPoints });
+      // --- CUSTOMER UPDATE/CREATE ---
+      if (customerId !== '999' && customerId !== '') {
+          if (activeCustomer && activeCustomer.id) {
+              // Existing Customer -> Update Points
+              const custRef = doc(db, "customers", activeCustomer.id);
+              batch.update(custRef, { points: newTotalPoints });
+          } else if (isValidLoyaltyId) {
+              // New Valid Customer -> Create Document
+              const newCustRef = doc(collection(db, "customers"));
+              batch.set(newCustRef, {
+                  loyaltyId: customerId,
+                  name: "New Member",
+                  points: pointsEarned // Start with what they just earned
+              });
+          }
       }
 
       await batch.commit();
 
-      // 4. Generate Receipt String
       const receiptText = `✅ **Transaction Complete**
       
       **Loyalty Points:**
@@ -709,7 +722,7 @@ export default function App() {
       + Earned: ${pointsEarned}
       - Used: ${pointsToRedeem}
       ----------------
-      = **Total: ${newTotalPoints}**
+      = **Total: ${isNewCustomer ? pointsEarned : newTotalPoints}**
       
       **Total Paid:** $${estimatedTotal.toLocaleString()}
       `;
@@ -794,10 +807,8 @@ export default function App() {
                         onClick={() => {
                             if (product.stock > 0) addToCart(product);
                         }}
-                        // INCREASED HEIGHT HERE TO h-40 (160px)
                         className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col justify-between items-start text-left group h-40 shadow-sm hover:shadow-md hover:border-[#99042E] active:scale-95 ${product.stock === 0 ? 'opacity-60 bg-gray-50' : ''}`}
                     >
-                        {/* Edit & Restock Icons */}
                         <div className="absolute top-2 right-2 flex gap-1 z-10">
                             <div 
                                 onClick={(e) => { e.stopPropagation(); setRestockingProduct(product); }}
@@ -824,15 +835,14 @@ export default function App() {
                             </div>
                         )}
 
-                        <div className="w-full mt-6 pr-10"> {/* Adjusted top margin and padding-right */}
+                        <div className="w-full mt-6 pr-10">
                             <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
-                            {/* LINE CLAMP 2: Allows 2 lines before cutting off */}
                             <h3 className="font-bold text-gray-800 mt-1 leading-snug group-hover:text-[#99042E] text-sm md:text-base line-clamp-2 break-words" title={product.name}>
                                 {product.name}
                             </h3>
                         </div>
                         
-                        <div className="flex justify-between items-end w-full mt-auto pt-2"> {/* mt-auto pins it to bottom */}
+                        <div className="flex justify-between items-end w-full mt-auto pt-2">
                             <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${product.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                 Qty: {product.stock}
@@ -866,6 +876,7 @@ export default function App() {
              <span className="font-bold text-lg text-gray-800">Current Order</span>
           </div>
 
+          {/* CUSTOMER PANEL (UPDATED) */}
           <div className="p-4 border-b border-gray-100 bg-gray-50">
              <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
@@ -879,17 +890,24 @@ export default function App() {
              </div>
              <div className="flex gap-2">
                <input 
-                 className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none ${customerId && !activeCustomer && customerId !== '999' ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-[#99042E]'}`}
-                 placeholder="GFT + 6 Digits (e.g. GFT123456)"
+                 className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none ${customerId && !activeCustomer && !isNewCustomer && customerId !== '999' ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-[#99042E]'}`}
+                 placeholder="GFT + 6 Digits"
                  value={customerId}
                  onChange={e => setCustomerId(e.target.value.toUpperCase())}
                />
              </div>
+             
+             {/* FEEDBACK MESSAGES */}
              {customerId && !activeCustomer && customerId !== '999' && (
-                <div className="mt-1 text-[10px] text-red-500 font-bold">
-                    {customerId.length >= 9 ? "ID Valid Format (Not Found)" : "ID Not Found"}
+                <div className={`mt-1 text-[10px] font-bold ${isNewCustomer ? 'text-blue-600' : 'text-red-500'}`}>
+                    {isNewCustomer ? (
+                        <span className="flex items-center gap-1"><UserPlus size={10} /> New Member (Points will be tracked)</span>
+                    ) : (
+                        "ID Not Found / Invalid Format"
+                    )}
                 </div>
              )}
+             
              {activeCustomer && (
                 <div className="mt-2 text-sm text-[#99042E] font-medium animate-fade-in">
                    Welcome back, {activeCustomer.name}
@@ -909,11 +927,6 @@ export default function App() {
                     <div className="flex-1">
                        <div className="font-medium text-gray-800">{item.name}</div>
                        <div className="text-xs text-gray-400 font-mono">{item.code}</div>
-                       {item.stock < 5 && (
-                         <div className="text-[10px] text-red-500 flex items-center gap-1 mt-1 font-bold">
-                            <AlertTriangle size={10} /> Low Stock ({item.stock} left)
-                         </div>
-                       )}
                     </div>
                     
                     <div className="flex items-center gap-3 mr-4">
@@ -986,7 +999,8 @@ export default function App() {
                 </button>
                 <button 
                    onClick={handleProcessSale}
-                   disabled={cart.length === 0 || isProcessing || (customerId.trim() !== '' && customerId !== '999' && !activeCustomer)}
+                   // Disable Pay if there's an ID typed that IS invalid format and NOT '999'
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999')}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
