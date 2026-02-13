@@ -343,14 +343,18 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
             <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans animate-fade-in">
                 <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
                     <h2 className="font-bold text-base md:text-lg flex items-center gap-2"><BarChart3 size={18} /> Sales Dashboard</h2>
+                    <div className="flex gap-2">
+                        <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
+                        <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data"><CloudUpload size={18} /></button>
+                        <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition"><X size={20} /></button>
+                    </div>
+                </div>
+                <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-3 justify-between bg-white shrink-0">
+                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">{(['today', 'week', 'month', 'all'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs md:text-sm font-bold capitalize whitespace-nowrap transition-all ${activeTab === tab ? 'bg-[#99042E] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>{tab}</button>))}</div>
                     <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
                         <button onClick={() => setViewMode('TRANSACTIONS')} className={`px-3 py-1 rounded text-xs font-bold transition ${viewMode === 'TRANSACTIONS' ? 'bg-white text-[#99042E]' : 'text-white/70 hover:text-white'}`}>Transactions</button>
                         <button onClick={() => setViewMode('INSIGHTS')} className={`px-3 py-1 rounded text-xs font-bold transition ${viewMode === 'INSIGHTS' ? 'bg-white text-[#99042E]' : 'text-white/70 hover:text-white'}`}>Insights</button>
                     </div>
-                    <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition"><X size={20} /></button>
-                </div>
-                <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-3 justify-between bg-white shrink-0">
-                    <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">{(['today', 'week', 'month', 'all'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs md:text-sm font-bold capitalize whitespace-nowrap transition-all ${activeTab === tab ? 'bg-[#99042E] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>{tab}</button>))}</div>
                     {viewMode === 'TRANSACTIONS' && <div className="relative w-full md:w-64"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input className="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400" placeholder="Search sales..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>}
                 </div>
                 <div className="grid grid-cols-3 gap-2 md:gap-4 p-3 bg-gray-50 border-b border-gray-200 shrink-0">
@@ -691,7 +695,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v10.0 (Analytics)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v10.1 (Stable)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
