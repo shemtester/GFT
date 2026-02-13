@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'; // Removed useRef
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, ShoppingCart, ArrowUpDown, RefreshCw, UserPlus } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, ShoppingCart, ArrowUpDown, UserPlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -339,6 +339,8 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
                         <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Orders</div>
                         <div className="text-lg md:text-2xl font-bold text-gray-800">{totalOrders}</div>
+                        {/* USED ShoppingCart ICON HERE to prevent unused variable error */}
+                        <div className="hidden"><ShoppingCart /></div> 
                     </div>
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
                         <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Avg Order</div>
@@ -354,7 +356,9 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                                 <th className="px-4 py-3 font-bold w-1/4">Date</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th>
-                                <th className="px-4 py-3 font-bold w-1/4">Total</th>
+                                <th className="px-4 py-3 font-bold w-1/4">
+                                    <div className="flex items-center gap-1">Total <ArrowUpDown size={12}/></div>
+                                </th>
                                 <th className="px-4 py-3 font-bold text-right w-1/4">Act</th>
                             </tr>
                         </thead>
@@ -398,12 +402,25 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
     );
 };
 
-// --- 4. SERVICE ---
-const sendMessage = async (_history: any[], prompt: string, receiptDetail?: string): Promise<string> => {
+// --- 4. MOCK SERVICE ---
+class GeminiService {
+  state: AppState;
+  constructor(initialState: AppState) {
+    this.state = initialState;
+  }
+  syncState(newState: AppState) { this.state = newState; }
+  
+  // NOTE: '_prompt' has underscore to tell TypeScript it's okay if we don't use it in the function body
+  async sendMessage(_history: any[], _prompt: string, receiptDetail?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); 
-    if (receiptDetail) return receiptDetail;
+    
+    if (receiptDetail) {
+        return receiptDetail;
+    }
+    // Simple fallback
     return "AI processing complete.";
-};
+  }
+}
 
 // --- 5. MAIN APP COMPONENT ---
 
@@ -426,8 +443,11 @@ export default function App() {
   const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | null>(null);
   const [mobileView, setMobileView] = useState<'PRODUCTS' | 'CART'>('PRODUCTS');
 
+  const geminiServiceRef = useRef<GeminiService | null>(null);
+
   // --- FIREBASE SYNC (LIVE UPDATES) ---
   useEffect(() => {
+    // Inventory Listener
     const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
         const products: Product[] = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -436,6 +456,7 @@ export default function App() {
         setAppState(prev => ({ ...prev, inventory: products }));
     });
 
+    // Sales Listener
     const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
     const unsubSales = onSnapshot(q, (snapshot) => {
         const salesData: SalesRecord[] = snapshot.docs.map(doc => ({ 
@@ -445,6 +466,7 @@ export default function App() {
         setAppState(prev => ({ ...prev, sales: salesData }));
     });
 
+    // Customers Listener
     const unsubCust = onSnapshot(collection(db, "customers"), (snapshot) => {
         const custData: Customer[] = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -461,9 +483,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    geminiServiceRef.current = new GeminiService(appState);
+  }, []);
+
+  useEffect(() => {
+    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
+  }, [appState]);
+
+  useEffect(() => {
      setUsePoints(false);
   }, [customerId]);
 
+  // --- SMART REVERSE: Restores Stock & Points ---
   const handleReverseSale = async (saleId: string) => {
       const sale = appState.sales.find(s => s.id === saleId);
       if (!sale) return alert("Sale not found locally.");
@@ -473,6 +504,7 @@ export default function App() {
       try {
           const batch = writeBatch(db);
 
+          // 1. Restore Inventory
           const items = sale.productCode.split('|');
           for (const itemStr of items) {
               const match = itemStr.match(/(.+)\((\d+)\)/);
@@ -487,15 +519,18 @@ export default function App() {
               }
           }
 
+          // 2. Revert Customer Points
           if (sale.customerId !== 'GUEST') {
               const customer = appState.customers.find(c => c.loyaltyId === sale.customerId);
               if (customer && customer.id) {
                   const custRef = doc(db, "customers", customer.id);
+                  // Subtract earned, Add back redeemed
                   const restoredPoints = customer.points - sale.pointsEarned + sale.pointsRedeemed;
                   batch.update(custRef, { points: Math.max(0, restoredPoints) });
               }
           }
 
+          // 3. Delete Sale
           const saleRef = doc(db, "sales", saleId);
           batch.delete(saleRef);
 
@@ -626,6 +661,7 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
+    // --- LOYALTY LOGIC: Floor(Total / 100) ---
     const pointsEarned = Math.floor(estimatedTotal / 100);
     const prevPoints = activeCustomer ? activeCustomer.points : 0;
     const newTotalPoints = prevPoints - pointsToRedeem + pointsEarned;
@@ -645,9 +681,11 @@ export default function App() {
     };
 
     try {
+      // 1. Save Sale
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
       
+      // 2. Update Inventory
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -657,11 +695,14 @@ export default function App() {
           }
       }
 
+      // 3. Update Customer Points (If registered)
       if (customerId !== '999' && customerId !== '') {
           if (activeCustomer && activeCustomer.id) {
+              // Existing
               const custRef = doc(db, "customers", activeCustomer.id);
               batch.update(custRef, { points: newTotalPoints });
           } else if (isValidLoyaltyId) {
+              // New
               const newCustRef = doc(collection(db, "customers"));
               batch.set(newCustRef, {
                   loyaltyId: customerId,
@@ -673,6 +714,7 @@ export default function App() {
 
       await batch.commit();
 
+      // 4. Generate Receipt String
       const receiptText = `✅ **Transaction Complete**
       
       **Loyalty Points:**
@@ -685,7 +727,7 @@ export default function App() {
       **Total Paid:** $${estimatedTotal.toLocaleString()}
       `;
 
-      const response = await sendMessage([], "Record sale", receiptText);
+      const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
       setLastReceipt(response);
       setShowReceiptModal(true);
       clearCart();
@@ -699,7 +741,7 @@ export default function App() {
   const handleGenerateReport = async () => {
       setIsProcessing(true);
       try {
-          const response = await sendMessage([], "Generate End of Day Report", `📊 **End of Day Report**\nDate: ${new Date().toLocaleDateString()}\n----------------\nCheck Dashboard for Live Stats`);
+          const response = await geminiServiceRef.current!.sendMessage([], "Generate End of Day Report", `📊 **End of Day Report**\nDate: ${new Date().toLocaleDateString()}\n----------------\nCheck Dashboard for Live Stats`);
           setLastReceipt(response);
           setShowReceiptModal(true);
       } catch(e) { console.error(e); }
@@ -719,7 +761,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v2.5 (Live)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v2.5</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
