@@ -91,10 +91,11 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
 
     const handleSave = async () => {
         if (!name || !email) return alert("Full Name and Email are required.");
-        
         setIsSaving(true);
         try {
-            await onSave({ name, email, dob });
+            // Force a timeout to prevent infinite hanging
+            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timed out (10s). Check Internet/Rules.")), 10000));
+            await Promise.race([onSave({ name, email, dob }), timeout]);
         } catch (error: any) {
             alert("Error saving: " + error.message);
         } finally {
@@ -109,23 +110,14 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                     <UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up
                 </h2>
                 <div className="space-y-3">
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label>
-                        <input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isSaving} autoFocus />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Email *</label>
-                        <input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isSaving} />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">D.O.B (Optional)</label>
-                        <input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="date" value={dob} onChange={e => setDob(e.target.value)} disabled={isSaving} />
-                    </div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isSaving} autoFocus /></div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isSaving} /></div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">D.O.B (Optional)</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="date" value={dob} onChange={e => setDob(e.target.value)} disabled={isSaving} /></div>
                 </div>
                 <div className="flex gap-2 mt-6">
                     <button onClick={onClose} disabled={isSaving} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
                     <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325] flex justify-center items-center gap-2">
-                        {isSaving ? "Saving..." : "Sign Up"}
+                        {isSaving ? <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : "Sign Up"}
                     </button>
                 </div>
             </div>
@@ -147,10 +139,7 @@ const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl animate-fade-in">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="font-bold text-lg flex items-center gap-2"><Pencil size={20} className="text-[#99042E]" /> Edit Member</h2>
-                    <button onClick={onClose}><X size={20}/></button>
-                </div>
+                <div className="flex justify-between items-center mb-4"><h2 className="font-bold text-lg flex items-center gap-2"><Pencil size={20} className="text-[#99042E]" /> Edit Member</h2><button onClick={onClose}><X size={20}/></button></div>
                 <div className="space-y-3">
                     <div className="bg-gray-50 p-2 rounded text-xs text-gray-500 mb-2 font-mono">ID: {customer.loyaltyId} (Cannot change)</div>
                     <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" value={name} onChange={e => setName(e.target.value)}/></div>
@@ -366,7 +355,7 @@ class GeminiService {
   constructor(initialState: AppState) { this.state = initialState; }
   syncState(newState: AppState) { this.state = newState; }
   async sendMessage(_history: any[], _prompt: string, receiptDetail?: string): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 800)); 
+    // ⚠️ REMOVED ARTIFICIAL DELAY FOR SPEED
     if (receiptDetail) return receiptDetail;
     return "AI processing complete.";
   }
@@ -422,26 +411,32 @@ export default function App() {
       const newLoyaltyId = `GFT${randomSixDigit}`;
       const newId = uuidv4();
 
-      // CLOSE MODAL FIRST (Optimistic)
+      // CLOSE MODAL FIRST (Optimistic UI)
       setActiveModal(null);
       
       try {
-          await setDoc(doc(db, "customers", newId), {
-              id: newId,
-              loyaltyId: newLoyaltyId,
-              name: data.name,
-              email: data.email,
-              dob: data.dob,
-              points: 0
-          });
+          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timed out. Check Rules.")), 10000));
           
+          await Promise.race([
+              setDoc(doc(db, "customers", newId), {
+                  id: newId,
+                  loyaltyId: newLoyaltyId,
+                  name: data.name,
+                  email: data.email,
+                  dob: data.dob,
+                  points: 0
+              }),
+              timeout
+          ]);
+          
+          // Show Alert AFTER save confirms (or fails)
           setTimeout(() => {
              alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}`);
           }, 300);
           
           setCustomerId(newLoyaltyId);
       } catch (e: any) {
-          alert("Error saving customer: " + e.message);
+          alert("Error saving customer: " + e.message + "\n\nIs your database online?");
       }
   };
 
@@ -498,7 +493,7 @@ export default function App() {
   };
 
   const handleSeedData = async () => {
-      if (!confirm("Upload Initial Data to Firebase? This will overwrite specific IDs.")) return;
+      if (!confirm("Upload Initial Data to Firebase?")) return;
       try {
           const batch = writeBatch(db);
           INITIAL_INVENTORY.forEach(p => { batch.set(doc(db, "inventory", p.id), p); });
@@ -583,7 +578,6 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    // Basic Validation Check
     if (customerId && !activeCustomer && !isNewCustomer && customerId !== '999') {
         alert("Invalid Customer ID format. Please use 'GFT' + 6 digits.");
         setIsProcessing(false);
@@ -598,26 +592,33 @@ export default function App() {
     const newSaleId = uuidv4();
 
     try {
-      await setDoc(doc(db, "sales", newSaleId), {
-        id: newSaleId, customerId: customerId || 'GUEST', productCode: productCodeString, pointsEarned, pointsRedeemed: pointsToRedeem,
-        total: estimatedTotal, date: now.toLocaleDateString() + ' ' + now.toLocaleTimeString(), timestamp: now.getTime()
-      });
+      // TIMEOUT WRAPPER FOR SALE
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Sale timed out (10s). Check Rules/Connection.")), 10000));
 
-      const batch = writeBatch(db);
-      for (const cartItem of cart) {
-          const product = appState.inventory.find(p => p.code === cartItem.code);
-          if(product) batch.update(doc(db, "inventory", product.id), { stock: Math.max(0, product.stock - cartItem.cartQuantity) });
-      }
+      const salePromise = async () => {
+          await setDoc(doc(db, "sales", newSaleId), {
+            id: newSaleId, customerId: customerId || 'GUEST', productCode: productCodeString, pointsEarned, pointsRedeemed: pointsToRedeem,
+            total: estimatedTotal, date: now.toLocaleDateString() + ' ' + now.toLocaleTimeString(), timestamp: now.getTime()
+          });
 
-      if (customerId && customerId !== '999') {
-          if (activeCustomer) {
-              batch.update(doc(db, "customers", activeCustomer.id), { points: newTotalPoints });
-          } else {
-              const newCustId = uuidv4();
-              batch.set(doc(db, "customers", newCustId), { id: newCustId, loyaltyId: customerId, name: "New Member (Manual)", points: pointsEarned, email: '', dob: '' });
+          const batch = writeBatch(db);
+          for (const cartItem of cart) {
+              const product = appState.inventory.find(p => p.code === cartItem.code);
+              if(product) batch.update(doc(db, "inventory", product.id), { stock: Math.max(0, product.stock - cartItem.cartQuantity) });
           }
-      }
-      await batch.commit();
+
+          if (customerId && customerId !== '999') {
+              if (activeCustomer) {
+                  batch.update(doc(db, "customers", activeCustomer.id), { points: newTotalPoints });
+              } else {
+                  const newCustId = uuidv4();
+                  batch.set(doc(db, "customers", newCustId), { id: newCustId, loyaltyId: customerId, name: "New Member (Manual)", points: pointsEarned, email: '', dob: '' });
+              }
+          }
+          await batch.commit();
+      };
+
+      await Promise.race([salePromise(), timeout]);
 
       const receiptText = `🎁 **Gift Factory Ja.** 🎁\n~ POS Receipt ~\n\n**Loyalty Points:**\nPrevious: ${prevPoints}\n+ Earned: ${pointsEarned}\n- Used: ${pointsToRedeem}\n----------------\n= **Total: ${isNewCustomer ? pointsEarned : newTotalPoints}**\n\n**Total Paid:** $${estimatedTotal.toLocaleString()}\n\nThank you for choosing Gift Factory Ja!`;
       const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
@@ -642,7 +643,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v9.0 (Stable)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v9.1 (Timeout Fix)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
