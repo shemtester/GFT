@@ -24,8 +24,8 @@ export interface Product {
   stock: number;
 }
 export interface Customer {
-  id?: string; // Firebase ID
-  loyaltyId: string; // The ID typed in input (e.g. CUST001)
+  id?: string;
+  loyaltyId: string; // Format: GFT + 6 alphanumeric
   name: string;
   points: number;
 }
@@ -48,7 +48,7 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA ---
+// --- 2. MOCK DATA (Updated to GFT Format) ---
 const INITIAL_INVENTORY: Product[] = [
   { code: 'RNG839201', category: 'Rings', name: 'Gold Band Ring', price: 1500, stock: 20 },
   { code: 'NK293841', category: 'Necklace', name: 'Silver Chain', price: 2500, stock: 10 },
@@ -57,8 +57,8 @@ const INITIAL_INVENTORY: Product[] = [
 ];
 
 const INITIAL_CUSTOMERS: Customer[] = [
-  { loyaltyId: 'CUST001', name: 'John Doe', points: 150 },
-  { loyaltyId: 'CUST002', name: 'Jane Smith', points: 50 },
+  { loyaltyId: 'GFT100200', name: 'John Doe', points: 150 },
+  { loyaltyId: 'GFT887766', name: 'Jane Smith', points: 50 },
 ];
 
 // --- 3. COMPONENTS ---
@@ -399,7 +399,6 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
 };
 
 // --- 4. MOCK SERVICE ---
-// Updated to accept details for dynamic receipt generation
 class GeminiService {
   state: AppState;
   constructor(initialState: AppState) {
@@ -407,7 +406,6 @@ class GeminiService {
   }
   syncState(newState: AppState) { this.state = newState; }
   
-  // Now accepts an explicit receipt string
   async sendMessage(_history: any[], prompt: string, receiptDetail?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); 
     
@@ -882,14 +880,14 @@ export default function App() {
              <div className="flex gap-2">
                <input 
                  className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none ${customerId && !activeCustomer && customerId !== '999' ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-[#99042E]'}`}
-                 placeholder="Loyalty ID (e.g. CUST001)"
+                 placeholder="GFT + 6 Digits (e.g. GFT123456)"
                  value={customerId}
                  onChange={e => setCustomerId(e.target.value.toUpperCase())}
                />
              </div>
              {customerId && !activeCustomer && customerId !== '999' && (
                 <div className="mt-1 text-[10px] text-red-500 font-bold">
-                    ID not found.
+                    {customerId.length >= 9 ? "ID Valid Format (Not Found)" : "ID Not Found"}
                 </div>
              )}
              {activeCustomer && (
