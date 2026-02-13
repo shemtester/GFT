@@ -31,7 +31,7 @@ export interface Customer {
 export interface SalesRecord {
   id: string;
   customerId: string;
-  productCode: string;
+  productCode: string; // Format: "CODE(QTY)|CODE(QTY)"
   pointsEarned: number;
   pointsRedeemed: number;
   total: number;
@@ -251,7 +251,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     );
 };
 
-const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (id: string) => void, onRefresh: () => void, onSeed: () => void }) => {
+const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onRefresh: () => void, onSeed: () => void }) => {
     const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -492,14 +492,52 @@ export default function App() {
     window.location.reload();
   };
 
+  // --- SMART REVERSE: Restores Stock ---
   const handleReverseSale = async (saleId: string) => {
-      if(confirm("Reverse this sale? Stock must be restored manually.")) {
-          try {
-            await deleteDoc(doc(db, "sales", saleId));
-            alert("Sale reversed.");
-          } catch(e: any) {
-              alert("Error: " + e.message);
+      // 1. Find the sale object
+      const sale = appState.sales.find(s => s.id === saleId);
+      if (!sale) return alert("Sale not found locally. Try refreshing.");
+
+      if(!confirm(`Reverse sale ${sale.id.slice(0,6)}?\nThis will return items to inventory.`)) return;
+
+      try {
+          const batch = writeBatch(db);
+
+          // 2. Parse Items: "CODE(QTY)|CODE(QTY)"
+          // Split by | to get individual items
+          const items = sale.productCode.split('|');
+
+          for (const itemStr of items) {
+              // Regex to match "GFT001(5)" -> Group 1: GFT001, Group 2: 5
+              const match = itemStr.match(/(.+)\((\d+)\)/);
+              if (match) {
+                  const itemCode = match[1];
+                  const itemQty = parseInt(match[2]);
+
+                  // Find the inventory document for this code
+                  const product = appState.inventory.find(p => p.code === itemCode);
+                  
+                  if (product && product.id) {
+                      const prodRef = doc(db, "inventory", product.id);
+                      // Calculate new stock (current + returned)
+                      // Ideally use increment(), but we stick to local calc for simplicity/consistency
+                      batch.update(prodRef, { stock: product.stock + itemQty });
+                  } else {
+                      console.warn(`Could not restore stock for ${itemCode} - Product not found.`);
+                  }
+              }
           }
+
+          // 3. Delete the Sale Record
+          const saleRef = doc(db, "sales", saleId);
+          batch.delete(saleRef);
+
+          await batch.commit();
+          alert("✅ Sale reversed & stock restored.");
+
+      } catch (e: any) {
+          console.error("Reverse Error:", e);
+          alert("Error reversing sale: " + e.message);
       }
   };
 
@@ -616,10 +654,13 @@ export default function App() {
     setIsProcessing(true);
 
     const now = new Date();
+    // Save Format: CODE(QTY)|CODE(QTY)
+    const productCodeString = cart.map(c => `${c.code}(${c.cartQuantity})`).join('|');
+
     const newSale: SalesRecord = {
         id: uuidv4(),
         customerId: customerId || 'GUEST',
-        productCode: cart.map(c => `${c.code}(${c.cartQuantity})`).join('|'),
+        productCode: productCodeString,
         pointsEarned: Math.floor(estimatedTotal / 100), 
         pointsRedeemed: pointsToRedeem,
         total: estimatedTotal,
