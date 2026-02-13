@@ -252,7 +252,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     );
 };
 
-const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onSeed: () => void }) => {
+const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onDeleteLog: (saleId: string) => void, onSeed: () => void }) => {
     const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -379,12 +379,20 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                                         <td className="px-4 py-3 font-bold text-gray-800">
                                             ${sale.total.toLocaleString()}
                                         </td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-4 py-3 text-right flex justify-end gap-1">
                                             <button 
                                                 onClick={() => onReverseSale(sale.id)} 
                                                 className="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition"
+                                                title="Reverse Sale (Restores Stock)"
                                             >
                                                 Rev
+                                            </button>
+                                            <button 
+                                                onClick={() => onDeleteLog(sale.id)} 
+                                                className="text-gray-400 hover:text-red-600 p-1 rounded transition"
+                                                title="Delete Log Only (Keep Stock)"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </td>
                                     </tr>
@@ -528,6 +536,16 @@ export default function App() {
 
       } catch (e: any) {
           alert("Error reversing sale: " + e.message);
+      }
+  };
+
+  // --- DELETE LOG ONLY (NEW) ---
+  const handleDeleteLog = async (saleId: string) => {
+      if(!confirm("Delete this log ONLY? (Stock & Points will NOT be changed)")) return;
+      try {
+          await deleteDoc(doc(db, "sales", saleId));
+      } catch (e: any) {
+          alert("Error: " + e.message);
       }
   };
 
@@ -1010,6 +1028,7 @@ export default function App() {
             sales={appState.sales} 
             onClose={() => setActiveModal(null)} 
             onReverseSale={handleReverseSale}
+            onDeleteLog={handleDeleteLog}
             onSeed={handleSeedData}
          />
       )}
