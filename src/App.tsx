@@ -75,24 +75,17 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- MODAL: ADD CUSTOMER (FAIL-SAFE) ---
-const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => Promise<void> }) => {
+// --- MODAL: ADD CUSTOMER (INSTANT CLOSE) ---
+const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [dob, setDob] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (!name || !email) return alert("Full Name and Email are required.");
         
-        setIsSaving(true);
-        try {
-            await onSave({ name, email, dob });
-        } catch (error: any) {
-            alert("Save Failed: " + error.message);
-        } finally {
-            setIsSaving(false); // GUARANTEED to stop spinner
-        }
+        // No waiting here. Fire and forget.
+        onSave({ name, email, dob });
     };
 
     return (
@@ -110,7 +103,6 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             placeholder="e.g. Jane Doe" 
                             value={name} 
                             onChange={e => setName(e.target.value)}
-                            disabled={isSaving}
                             autoFocus 
                         />
                     </div>
@@ -121,8 +113,7 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             placeholder="jane@example.com" 
                             type="email"
                             value={email} 
-                            onChange={e => setEmail(e.target.value)}
-                            disabled={isSaving}
+                            onChange={e => setEmail(e.target.value)} 
                         />
                     </div>
                     <div>
@@ -131,20 +122,18 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                             type="date"
                             value={dob} 
-                            onChange={e => setDob(e.target.value)}
-                            disabled={isSaving}
+                            onChange={e => setDob(e.target.value)} 
                         />
                     </div>
                 </div>
 
                 <div className="flex gap-2 mt-6">
-                    <button onClick={onClose} disabled={isSaving} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                    <button onClick={onClose} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
                     <button 
                         onClick={handleSave} 
-                        disabled={isSaving}
                         className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325] flex justify-center items-center gap-2"
                     >
-                        {isSaving ? <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : "Sign Up"}
+                        Sign Up
                     </button>
                 </div>
             </div>
@@ -737,30 +726,34 @@ export default function App() {
      setUsePoints(false);
   }, [customerId]);
 
-  const handleRegisterCustomer = async (data: { name: string, email: string, dob: string }) => {
+  const handleRegisterCustomer = (data: { name: string, email: string, dob: string }) => {
       const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
       const newLoyaltyId = `GFT${randomSixDigit}`;
       const newId = uuidv4();
 
-      // SIMPLIFIED LOGIC: No check for duplicates, just save.
-      await setDoc(doc(db, "customers", newId), {
+      // 1. CLOSE MODAL IMMEDIATELY
+      setActiveModal(null);
+      
+      // 2. SHOW ALERT (Tiny delay to let modal vanish)
+      setTimeout(() => {
+         alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
+      }, 300);
+      
+      // 3. SET CUSTOMER ACTIVE
+      setCustomerId(newLoyaltyId);
+
+      // 4. SAVE TO DB IN BACKGROUND (Fire & Forget)
+      setDoc(doc(db, "customers", newId), {
           id: newId,
           loyaltyId: newLoyaltyId,
           name: data.name,
           email: data.email,
           dob: data.dob,
           points: 0
+      }).catch(err => {
+          console.error("Failed to save customer to cloud:", err);
+          alert("Warning: Saved locally only. Check internet connection.");
       });
-
-      // CLOSE MODAL FIRST
-      setActiveModal(null);
-      
-      // THEN SHOW ALERT
-      setTimeout(() => {
-         alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
-      }, 500);
-      
-      setCustomerId(newLoyaltyId);
   };
 
   const handleUpdateCustomer = async (updatedCustomer: Customer) => {
@@ -977,6 +970,7 @@ export default function App() {
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
 
+  // --- FIXED: PROCESS SALE LOGIC ---
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -1087,7 +1081,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.3 (Fail-Safe)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.4 (Instant Action)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
