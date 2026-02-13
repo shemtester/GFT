@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown, RefreshCw, UserPlus } from 'lucide-react';
+import { useState, useEffect } from 'react'; // Removed useRef
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, ShoppingCart, ArrowUpDown, RefreshCw, UserPlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -25,7 +25,7 @@ export interface Product {
 }
 export interface Customer {
   id?: string;
-  loyaltyId: string; // Format: GFT + 6 digits
+  loyaltyId: string;
   name: string;
   points: number;
 }
@@ -398,32 +398,12 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
     );
 };
 
-// --- 4. MOCK SERVICE ---
-class GeminiService {
-  state: AppState;
-  constructor(initialState: AppState) {
-    this.state = initialState;
-  }
-  syncState(newState: AppState) { this.state = newState; }
-  
-  async sendMessage(_history: any[], prompt: string, receiptDetail?: string): Promise<string> {
+// --- 4. SERVICE ---
+const sendMessage = async (_history: any[], prompt: string, receiptDetail?: string): Promise<string> => {
     await new Promise(resolve => setTimeout(resolve, 800)); 
-    
-    if (receiptDetail) {
-        return receiptDetail;
-    }
-
-    if(prompt.includes("Generate End of Day Report")) {
-        const now = new Date();
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-        const todaySales = this.state.sales.filter(s => s.timestamp >= startOfDay);
-        const totalValue = todaySales.reduce((acc, curr) => acc + curr.total, 0);
-        const count = todaySales.length;
-        return `📊 **End of Day Report**\nDate: ${now.toLocaleDateString()}\n------------------------------\n✅ Total Sales: $${totalValue.toLocaleString()}\n✅ Transactions: ${count}\n\nGood work today!`;
-    }
+    if (receiptDetail) return receiptDetail;
     return "AI processing complete.";
-  }
-}
+};
 
 // --- 5. MAIN APP COMPONENT ---
 
@@ -446,11 +426,8 @@ export default function App() {
   const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | null>(null);
   const [mobileView, setMobileView] = useState<'PRODUCTS' | 'CART'>('PRODUCTS');
 
-  const geminiServiceRef = useRef<GeminiService | null>(null);
-
   // --- FIREBASE SYNC (LIVE UPDATES) ---
   useEffect(() => {
-    // Inventory Listener
     const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
         const products: Product[] = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -459,7 +436,6 @@ export default function App() {
         setAppState(prev => ({ ...prev, inventory: products }));
     });
 
-    // Sales Listener
     const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
     const unsubSales = onSnapshot(q, (snapshot) => {
         const salesData: SalesRecord[] = snapshot.docs.map(doc => ({ 
@@ -469,7 +445,6 @@ export default function App() {
         setAppState(prev => ({ ...prev, sales: salesData }));
     });
 
-    // Customers Listener
     const unsubCust = onSnapshot(collection(db, "customers"), (snapshot) => {
         const custData: Customer[] = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -486,18 +461,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    geminiServiceRef.current = new GeminiService(appState);
-  }, []);
-
-  useEffect(() => {
-    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
-  }, [appState]);
-
-  useEffect(() => {
      setUsePoints(false);
   }, [customerId]);
 
-  // --- SMART REVERSE: Restores Stock & Points ---
   const handleReverseSale = async (saleId: string) => {
       const sale = appState.sales.find(s => s.id === saleId);
       if (!sale) return alert("Sale not found locally.");
@@ -507,7 +473,6 @@ export default function App() {
       try {
           const batch = writeBatch(db);
 
-          // 1. Restore Inventory
           const items = sale.productCode.split('|');
           for (const itemStr of items) {
               const match = itemStr.match(/(.+)\((\d+)\)/);
@@ -522,18 +487,15 @@ export default function App() {
               }
           }
 
-          // 2. Revert Customer Points
           if (sale.customerId !== 'GUEST') {
               const customer = appState.customers.find(c => c.loyaltyId === sale.customerId);
               if (customer && customer.id) {
                   const custRef = doc(db, "customers", customer.id);
-                  // Subtract earned, Add back redeemed
                   const restoredPoints = customer.points - sale.pointsEarned + sale.pointsRedeemed;
                   batch.update(custRef, { points: Math.max(0, restoredPoints) });
               }
           }
 
-          // 3. Delete Sale
           const saleRef = doc(db, "sales", saleId);
           batch.delete(saleRef);
 
@@ -652,6 +614,7 @@ export default function App() {
   
   // --- CUSTOMER LOOKUP LOGIC ---
   const activeCustomer = appState.customers.find(c => c.loyaltyId === customerId);
+  // REGEX: GFT + 6 digits (Total 9 chars)
   const isValidLoyaltyId = /^GFT\d{6}$/.test(customerId);
   const isNewCustomer = isValidLoyaltyId && !activeCustomer;
 
@@ -663,7 +626,6 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
-    // --- LOYALTY LOGIC ---
     const pointsEarned = Math.floor(estimatedTotal / 100);
     const prevPoints = activeCustomer ? activeCustomer.points : 0;
     const newTotalPoints = prevPoints - pointsToRedeem + pointsEarned;
@@ -686,7 +648,6 @@ export default function App() {
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
       
-      // Inventory
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -696,19 +657,16 @@ export default function App() {
           }
       }
 
-      // --- CUSTOMER UPDATE/CREATE ---
       if (customerId !== '999' && customerId !== '') {
           if (activeCustomer && activeCustomer.id) {
-              // Existing Customer -> Update Points
               const custRef = doc(db, "customers", activeCustomer.id);
               batch.update(custRef, { points: newTotalPoints });
           } else if (isValidLoyaltyId) {
-              // New Valid Customer -> Create Document
               const newCustRef = doc(collection(db, "customers"));
               batch.set(newCustRef, {
                   loyaltyId: customerId,
                   name: "New Member",
-                  points: pointsEarned // Start with what they just earned
+                  points: pointsEarned 
               });
           }
       }
@@ -727,7 +685,7 @@ export default function App() {
       **Total Paid:** $${estimatedTotal.toLocaleString()}
       `;
 
-      const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
+      const response = await sendMessage([], "Record sale", receiptText);
       setLastReceipt(response);
       setShowReceiptModal(true);
       clearCart();
@@ -741,7 +699,7 @@ export default function App() {
   const handleGenerateReport = async () => {
       setIsProcessing(true);
       try {
-          const response = await geminiServiceRef.current!.sendMessage([], "Generate End of Day Report");
+          const response = await sendMessage([], "Generate End of Day Report", `📊 **End of Day Report**\nDate: ${new Date().toLocaleDateString()}\n----------------\nCheck Dashboard for Live Stats`);
           setLastReceipt(response);
           setShowReceiptModal(true);
       } catch(e) { console.error(e); }
@@ -761,7 +719,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja.</h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v2.5 (Live)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -876,7 +834,6 @@ export default function App() {
              <span className="font-bold text-lg text-gray-800">Current Order</span>
           </div>
 
-          {/* CUSTOMER PANEL (UPDATED) */}
           <div className="p-4 border-b border-gray-100 bg-gray-50">
              <div className="flex items-center justify-between mb-2">
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
@@ -901,9 +858,9 @@ export default function App() {
              {customerId && !activeCustomer && customerId !== '999' && (
                 <div className={`mt-1 text-[10px] font-bold ${isNewCustomer ? 'text-blue-600' : 'text-red-500'}`}>
                     {isNewCustomer ? (
-                        <span className="flex items-center gap-1"><UserPlus size={10} /> New Member (Points will be tracked)</span>
+                        <span className="flex items-center gap-1"><UserPlus size={10} /> ✅ Valid New ID (Points will be tracked)</span>
                     ) : (
-                        "ID Not Found / Invalid Format"
+                        "❌ Invalid Format (Must be GFT+6 Digits)"
                     )}
                 </div>
              )}
@@ -999,7 +956,7 @@ export default function App() {
                 </button>
                 <button 
                    onClick={handleProcessSale}
-                   // Disable Pay if there's an ID typed that IS invalid format and NOT '999'
+                   // FIX: Only disable if cart is empty OR processing OR ID format is totally wrong
                    disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999')}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
