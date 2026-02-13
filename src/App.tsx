@@ -449,8 +449,8 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
                             <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2">
                                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Package size={18} className="text-blue-600" /> Live Inventory Levels</h3>
                                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                                    {sortedInventory.length === 0 ? <p className="text-gray-400 text-sm">No inventory.</p> : sortedInventory.map((p, i) => {
-                                        const stockPct = Math.min(100, (p.stock / 20) * 100); // Assume 20 is "full" for visual
+                                    {sortedInventory.length === 0 ? <p className="text-gray-400 text-sm">No inventory.</p> : sortedInventory.map((p) => {
+                                        const stockPct = Math.min(100, (p.stock / 20) * 100); 
                                         let barColor = 'bg-green-500';
                                         if (p.stock < 5) barColor = 'bg-red-500';
                                         else if (p.stock < 10) barColor = 'bg-orange-500';
@@ -765,7 +765,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v12.0 (Inventory Visuals)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v12.1 (Final Cleanup)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
