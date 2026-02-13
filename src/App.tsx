@@ -3,7 +3,7 @@ import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileTex
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
-import { collection, setDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, query, orderBy } from 'firebase/firestore';
+import { collection, setDoc, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, query, orderBy, where, getDocs } from 'firebase/firestore';
 
 // --- 1. TYPES & INTERFACES ---
 export type MessageRole = 'user' | 'model';
@@ -397,7 +397,7 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSee
                                             <button 
                                                 onClick={() => onDeleteLog(sale.id)} 
                                                 className="text-gray-400 hover:text-red-600 p-1 rounded transition"
-                                                title="Delete Log Only"
+                                                title="Delete Log Only (Keep Stock)"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -519,25 +519,35 @@ export default function App() {
               if (match) {
                   const itemCode = match[1];
                   const itemQty = parseInt(match[2]);
-                  const product = appState.inventory.find(p => p.code === itemCode);
-                  if (product && product.id) {
-                      const prodRef = doc(db, "inventory", product.id);
-                      batch.update(prodRef, { stock: product.stock + itemQty });
-                  }
+                  // FIND DOCUMENT BY QUERY (FIX FOR OLD LOGS)
+                  const q = query(collection(db, "inventory"), where("code", "==", itemCode));
+                  const snapshot = await getDocs(q);
+                  
+                  snapshot.forEach((docSnap) => {
+                      // We use the doc ref from the search result, not assuming ID
+                      batch.update(docSnap.ref, { stock: docSnap.data().stock + itemQty });
+                  });
               }
           }
 
+          // Revert Points (Find customer by Loyalty ID)
           if (sale.customerId !== 'GUEST') {
-              const customer = appState.customers.find(c => c.loyaltyId === sale.customerId);
-              if (customer && customer.id) {
-                  const custRef = doc(db, "customers", customer.id);
-                  const restoredPoints = customer.points - sale.pointsEarned + sale.pointsRedeemed;
-                  batch.update(custRef, { points: Math.max(0, restoredPoints) });
-              }
+              const q = query(collection(db, "customers"), where("loyaltyId", "==", sale.customerId));
+              const custSnap = await getDocs(q);
+              
+              custSnap.forEach((docSnap) => {
+                  const currentPoints = docSnap.data().points;
+                  const restoredPoints = currentPoints - sale.pointsEarned + sale.pointsRedeemed;
+                  batch.update(docSnap.ref, { points: Math.max(0, restoredPoints) });
+              });
           }
 
-          const saleRef = doc(db, "sales", saleId);
-          batch.delete(saleRef);
+          // UNIVERSAL DELETE (Find by ID field, delete matches)
+          const saleQ = query(collection(db, "sales"), where("id", "==", saleId));
+          const saleSnap = await getDocs(saleQ);
+          saleSnap.forEach((docSnap) => {
+              batch.delete(docSnap.ref);
+          });
 
           await batch.commit();
 
@@ -546,11 +556,22 @@ export default function App() {
       }
   };
 
-  // --- DELETE LOG ONLY (NEW) ---
+  // --- DELETE LOG ONLY (UNIVERSAL FIX) ---
   const handleDeleteLog = async (saleId: string) => {
-      if(!confirm("Delete this log ONLY? (Stock & Points will NOT be changed)")) return;
+      if(!confirm("Delete this log ONLY?")) return;
       try {
-          await deleteDoc(doc(db, "sales", saleId));
+          // SEARCH AND DESTROY (Works for old & new logs)
+          const q = query(collection(db, "sales"), where("id", "==", saleId));
+          const snapshot = await getDocs(q);
+          
+          if (snapshot.empty) {
+              // Fallback: try deleting by direct ID if query fails
+              await deleteDoc(doc(db, "sales", saleId));
+          } else {
+              snapshot.forEach(async (docSnap) => {
+                  await deleteDoc(docSnap.ref);
+              });
+          }
       } catch (e: any) {
           alert("Error: " + e.message);
       }
@@ -626,29 +647,46 @@ export default function App() {
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
     if (!updatedProduct.id) return;
-    const ref = doc(db, "inventory", updatedProduct.id);
-    await updateDoc(ref, { 
-        name: updatedProduct.name,
-        price: updatedProduct.price,
-        stock: updatedProduct.stock,
-        code: updatedProduct.code,
-        category: updatedProduct.category
-    });
+    
+    // Universal Update: Find by ID field (safe for old data too)
+    const q = query(collection(db, "inventory"), where("id", "==", updatedProduct.id));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+        // Update the first match found
+        const ref = snapshot.docs[0].ref;
+        await updateDoc(ref, { 
+            name: updatedProduct.name,
+            price: updatedProduct.price,
+            stock: updatedProduct.stock,
+            code: updatedProduct.code,
+            category: updatedProduct.category
+        });
+    }
     setEditingProduct(null);
   };
 
   const handleDeleteProduct = async (product: Product) => {
     if (!product.id) return;
     if (confirm(`Delete ${product.name}?`)) {
-        await deleteDoc(doc(db, "inventory", product.id));
+        // Universal Delete
+        const q = query(collection(db, "inventory"), where("id", "==", product.id));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(async (docSnap) => {
+            await deleteDoc(docSnap.ref);
+        });
         setEditingProduct(null);
     }
   };
 
   const handleRestockProduct = async (product: Product, qty: number) => {
       if (!product.id) return;
-      const ref = doc(db, "inventory", product.id);
-      await updateDoc(ref, { stock: product.stock + qty });
+      
+      const q = query(collection(db, "inventory"), where("id", "==", product.id));
+      const snapshot = await getDocs(q);
+      snapshot.forEach(async (docSnap) => {
+          await updateDoc(docSnap.ref, { stock: product.stock + qty });
+      });
       setRestockingProduct(null);
   };
 
@@ -697,19 +735,27 @@ export default function App() {
       await setDoc(doc(db, "sales", newSaleId), newSale);
       const batch = writeBatch(db);
       
+      // Update Inventory (Search by Code to be safe)
       for (const cartItem of cart) {
-          const productDoc = appState.inventory.find(p => p.code === cartItem.code);
-          if (productDoc && productDoc.id) {
-              const ref = doc(db, "inventory", productDoc.id);
-              const newStock = Math.max(0, productDoc.stock - cartItem.cartQuantity);
-              batch.update(ref, { stock: newStock });
-          }
+          const q = query(collection(db, "inventory"), where("code", "==", cartItem.code));
+          const snapshot = await getDocs(q);
+          snapshot.forEach((docSnap) => {
+              // Deduct stock
+              const currentStock = docSnap.data().stock;
+              const newStock = Math.max(0, currentStock - cartItem.cartQuantity);
+              batch.update(docSnap.ref, { stock: newStock });
+          });
       }
 
+      // Update Customer (Search by Loyalty ID)
       if (customerId !== '999' && customerId !== '') {
-          if (activeCustomer && activeCustomer.id) {
-              const custRef = doc(db, "customers", activeCustomer.id);
-              batch.update(custRef, { points: newTotalPoints });
+          if (activeCustomer) {
+              // Find existing customer doc by Loyalty ID
+              const q = query(collection(db, "customers"), where("loyaltyId", "==", customerId));
+              const snapshot = await getDocs(q);
+              snapshot.forEach((docSnap) => {
+                  batch.update(docSnap.ref, { points: newTotalPoints });
+              });
           } else if (isValidLoyaltyId) {
               const newCustId = uuidv4();
               const newCustRef = doc(db, "customers", newCustId);
@@ -724,6 +770,7 @@ export default function App() {
 
       await batch.commit();
 
+      // --- BRANDED RECEIPT ---
       const receiptText = `🎁 **Gift Factory Ja.** 🎁
       ~ POS Receipt ~
       
@@ -773,7 +820,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v3.1 (Stable)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v3.2 (Universal Fix)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
