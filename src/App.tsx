@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -288,14 +288,12 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                 {/* --- HEADER --- */}
                 <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
                     <h2 className="font-bold text-base md:text-lg flex items-center gap-2">
-                        {/* CHANGED ICON HERE TO BarChart3 */}
                         <BarChart3 size={18} /> Sales Dashboard
                     </h2>
                     <div className="flex gap-2">
                         <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
                             <CloudUpload size={18} />
                         </button>
-                        {/* REMOVED REFRESH BUTTON (AUTO-LIVE) */}
                         <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition">
                             <X size={20} />
                         </button>
@@ -304,7 +302,6 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
 
                 {/* --- CONTROLS --- */}
                 <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-3 justify-between bg-white shrink-0">
-                    {/* Responsive Tabs */}
                     <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">
                         {(['today', 'week', 'month', 'all'] as const).map((tab) => (
                             <button
@@ -321,7 +318,6 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                         ))}
                     </div>
 
-                    {/* Search */}
                     <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
                         <input 
@@ -349,16 +345,16 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                     </div>
                 </div>
 
-                {/* --- TABLE --- */}
+                {/* --- TABLE (SCROLLABLE) --- */}
                 <div className="flex-1 overflow-auto bg-white relative">
-                    <table className="w-full text-sm text-left table-fixed">
+                    <table className="w-full text-sm text-left table-fixed min-w-[350px]"> 
                         <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10">
                             <tr>
-                                <th className="px-4 py-3 font-bold w-1/4 md:w-auto">Date</th>
+                                <th className="px-4 py-3 font-bold w-1/4">Date</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th>
-                                <th className="px-4 py-3 font-bold w-1/4 md:w-auto">Total</th>
-                                <th className="px-4 py-3 font-bold text-right w-1/4 md:w-auto">Act</th>
+                                <th className="px-4 py-3 font-bold w-1/4">Total</th>
+                                <th className="px-4 py-3 font-bold text-right w-1/4">Act</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -754,10 +750,11 @@ export default function App() {
                         onClick={() => {
                             if (product.stock > 0) addToCart(product);
                         }}
-                        className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col items-start text-left group h-28 md:h-32 justify-between active:scale-95 ${product.stock === 0 ? 'border-gray-200 opacity-60 bg-gray-50' : 'border-gray-200 shadow-sm hover:shadow-md hover:border-[#99042E]'}`}
+                        // INCREASED HEIGHT HERE TO h-40 (160px)
+                        className={`relative bg-white p-3 md:p-4 rounded-xl border transition-all flex flex-col justify-between items-start text-left group h-40 shadow-sm hover:shadow-md hover:border-[#99042E] active:scale-95 ${product.stock === 0 ? 'opacity-60 bg-gray-50' : ''}`}
                     >
                         {/* Edit & Restock Icons */}
-                        <div className="absolute top-2 right-2 flex gap-1">
+                        <div className="absolute top-2 right-2 flex gap-1 z-10">
                             <div 
                                 onClick={(e) => { e.stopPropagation(); setRestockingProduct(product); }}
                                 className="p-1.5 bg-white/90 backdrop-blur-sm hover:bg-green-600 text-gray-500 hover:text-white rounded-lg shadow-sm cursor-pointer" 
@@ -783,11 +780,15 @@ export default function App() {
                             </div>
                         )}
 
-                        <div className="w-full mt-4 md:mt-0 pr-16 text-left"> {/* Added PR-16 to avoid icons */}
+                        <div className="w-full mt-6 pr-10"> {/* Adjusted top margin and padding-right */}
                             <span className="text-[10px] md:text-xs font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{product.code}</span>
-                            <h3 className="font-bold text-gray-800 mt-1 md:mt-2 w-full truncate group-hover:text-[#99042E] text-sm md:text-base">{product.name}</h3>
+                            {/* LINE CLAMP 2: Allows 2 lines before cutting off */}
+                            <h3 className="font-bold text-gray-800 mt-1 leading-snug group-hover:text-[#99042E] text-sm md:text-base line-clamp-2 break-words" title={product.name}>
+                                {product.name}
+                            </h3>
                         </div>
-                        <div className="flex justify-between items-end w-full mt-1">
+                        
+                        <div className="flex justify-between items-end w-full mt-auto pt-2"> {/* mt-auto pins it to bottom */}
                             <span className="text-[#F79032] font-bold text-base md:text-lg">${product.price.toLocaleString()}</span>
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${product.stock < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}`}>
                                 Qty: {product.stock}
