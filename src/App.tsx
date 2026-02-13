@@ -185,59 +185,97 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp,
     );
 };
 
-const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product) => void }) => {
-  const [category, setCategory] = useState('Rings');
-  const [code, setCode] = useState('');
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('10');
+// --- BULK ADD INVENTORY MODAL ---
+const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (products: Product[]) => void }) => {
+  const generateCode = (cat: string) => {
+      const random = Math.floor(100000 + Math.random() * 900000);
+      const prefix = cat === 'Necklace' ? 'NK' : cat === 'Bracelet' ? 'BL' : 'RNG';
+      return `${prefix}${random}`;
+  };
 
-  useEffect(() => {
-    const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
-    let prefix = 'RNG';
-    if (category === 'Necklace') prefix = 'NK';
-    else if (category === 'Bracelet') prefix = 'BL';
-    setCode(`${prefix}${randomSixDigit}`);
-  }, [category]);
+  const [rows, setRows] = useState<Product[]>([
+      { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }
+  ]);
+
+  const addRow = () => {
+      setRows([...rows, { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }]);
+  };
+
+  const removeRow = (index: number) => {
+      if(rows.length > 1) {
+          setRows(rows.filter((_, i) => i !== index));
+      }
+  };
+
+  const updateRow = (index: number, field: keyof Product, value: any) => {
+      const newRows = [...rows];
+      newRows[index] = { ...newRows[index], [field]: value };
+      if (field === 'category') {
+          newRows[index].code = generateCode(value);
+      }
+      setRows(newRows);
+  };
 
   const handleSave = () => {
-    if (!name || !price) return alert("Please fill in Name and Price");
-    const newProd: Product = { 
-        id: uuidv4(),
-        code: code || 'UNK',
-        category, 
-        name, 
-        price: Number(price), 
-        stock: Number(stock) 
-    };
-    onSave(newProd);
+      if (rows.some(r => !r.name || r.price <= 0)) return alert("Please fill in Name and valid Price for all items.");
+      onSave(rows);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl animate-fade-in">
-        <h2 className="font-bold mb-4 text-lg">Add New Product</h2>
-        <div className="space-y-3 mb-4">
-            <div>
-                <label className="text-xs font-bold text-gray-500 uppercase">Category</label>
-                <div className="relative">
-                    <select className="w-full border border-gray-300 p-2 rounded bg-white focus:ring-2 focus:ring-[#99042E] outline-none appearance-none text-gray-800" value={category} onChange={(e) => setCategory(e.target.value)}>
-                        <option value="Rings">Rings</option>
-                        <option value="Necklace">Necklace</option>
-                        <option value="Bracelet">Bracelet</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700"><ChevronRight className="rotate-90" size={16} /></div>
-                </div>
+        <div className="bg-white p-6 rounded-lg w-full max-w-5xl shadow-xl animate-fade-in flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold text-lg flex items-center gap-2"><PlusCircle size={20} className="text-[#99042E]"/> Bulk Add Inventory</h2>
+                <button onClick={onClose}><X size={20} /></button>
             </div>
-            <div><label className="text-xs font-bold text-gray-500 uppercase">Unique Code</label><input className="w-full border border-gray-300 p-2 rounded bg-gray-50 font-mono text-sm focus:ring-2 focus:ring-[#99042E] outline-none" value={code} onChange={e => setCode(e.target.value)} /></div>
-            <div><label className="text-xs font-bold text-gray-500 uppercase">Product Name</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Gold Band" value={name} onChange={e => setName(e.target.value)} /></div>
+            
+            <div className="flex-1 overflow-auto border rounded-lg mb-4">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-100 text-xs font-bold text-gray-500 uppercase sticky top-0">
+                        <tr>
+                            <th className="p-3">Category</th>
+                            <th className="p-3">Code</th>
+                            <th className="p-3">Name</th>
+                            <th className="p-3 w-24">Price</th>
+                            <th className="p-3 w-20">Qty</th>
+                            <th className="p-3 w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {rows.map((row, i) => (
+                            <tr key={row.id}>
+                                <td className="p-2">
+                                    <select 
+                                        className="w-full border p-1 rounded" 
+                                        value={row.category} 
+                                        onChange={e => updateRow(i, 'category', e.target.value)}
+                                    >
+                                        <option value="Rings">Rings</option>
+                                        <option value="Necklace">Necklace</option>
+                                        <option value="Bracelet">Bracelet</option>
+                                    </select>
+                                </td>
+                                <td className="p-2"><input className="w-full border p-1 rounded font-mono text-xs" value={row.code} onChange={e => updateRow(i, 'code', e.target.value)} /></td>
+                                <td className="p-2"><input className="w-full border p-1 rounded" placeholder="Product Name" value={row.name} onChange={e => updateRow(i, 'name', e.target.value)} /></td>
+                                <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.price || ''} onChange={e => updateRow(i, 'price', parseFloat(e.target.value))} /></td>
+                                <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.stock} onChange={e => updateRow(i, 'stock', parseInt(e.target.value))} /></td>
+                                <td className="p-2 text-center">
+                                    <button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
             <div className="flex gap-2">
-                <div className="flex-1"><label className="text-xs font-bold text-gray-500 uppercase">Price</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" placeholder="0.00" value={price} onChange={e => setPrice(e.target.value)} /></div>
-                <div className="flex-1"><label className="text-xs font-bold text-gray-500 uppercase">Qty</label><input className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="number" value={stock} onChange={e => setStock(e.target.value)} /></div>
+                <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 font-bold text-sm">
+                    <Plus size={16} /> Add Row
+                </button>
+                <div className="flex-1"></div>
+                <button onClick={onClose} className="px-6 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                <button onClick={handleSave} className="px-6 py-2 bg-[#99042E] text-white rounded-lg font-bold hover:bg-[#7a0325]">Save All</button>
             </div>
-        </div>
-        <button onClick={handleSave} className="bg-[#99042E] text-white w-full py-3 rounded-lg font-bold mb-2 hover:bg-[#7a0325]">Save Product</button>
-        <button onClick={onClose} className="w-full py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-medium">Cancel</button>
         </div>
     </div>
   );
@@ -585,11 +623,17 @@ export default function App() {
   const removeFromCart = (index: number) => setCart(prev => prev.filter((_, i) => i !== index));
   const clearCart = () => { setCart([]); setCustomerId(''); setDiscountInput(''); setUsePoints(false); setMobileView('PRODUCTS'); };
 
-  const handleAddProduct = async (product: Product) => {
+  const handleAddProduct = async (products: Product[]) => {
       try {
-        await setDoc(doc(db, "inventory", product.id), product);
+        const batch = writeBatch(db);
+        products.forEach(p => {
+            const ref = doc(db, "inventory", p.id);
+            batch.set(ref, p);
+        });
+        await batch.commit();
         setActiveModal(null);
-      } catch (e: any) { alert("Error adding product: " + e.message); }
+        alert(`✅ Added ${products.length} products!`);
+      } catch (e: any) { alert("Error adding products: " + e.message); }
   };
 
   const handleUpdateProduct = async (updatedProduct: Product) => {
@@ -695,7 +739,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v10.1 (Stable)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v11.0 (Bulk Entry)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
