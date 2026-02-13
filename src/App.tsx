@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, Gift } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -27,6 +27,8 @@ export interface Customer {
   id: string;
   loyaltyId: string;
   name: string;
+  email?: string;
+  dob?: string;
   points: number;
 }
 export interface SalesRecord {
@@ -48,18 +50,9 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA ---
-const INITIAL_INVENTORY: Product[] = [
-  { id: '1', code: 'RNG839201', category: 'Rings', name: 'Gold Band Ring', price: 1500, stock: 20 },
-  { id: '2', code: 'NK293841', category: 'Necklace', name: 'Silver Chain', price: 2500, stock: 10 },
-  { id: '3', code: 'BL938271', category: 'Bracelet', name: 'Charm Bracelet', price: 1200, stock: 15 },
-  { id: '4', code: 'GFT004', category: 'Other', name: 'Gift Box', price: 800, stock: 5 },
-];
-
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: '1', loyaltyId: 'GFT100200', name: 'John Doe', points: 150 },
-  { id: '2', loyaltyId: 'GFT887766', name: 'Jane Smith', points: 50 },
-];
+// --- 2. MOCK DATA (Fallback) ---
+const INITIAL_INVENTORY: Product[] = [];
+const INITIAL_CUSTOMERS: Customer[] = [];
 
 // --- 3. COMPONENTS ---
 
@@ -82,8 +75,67 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- NEW COMPONENT: CUSTOMER LIST ---
-const CustomerListModal = ({ customers, onClose, onSelectCustomer }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void }) => {
+// --- NEW COMPONENT: ADD CUSTOMER MODAL ---
+const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [dob, setDob] = useState('');
+
+    const handleSave = () => {
+        if (!name) return alert("Full Name is required.");
+        onSave({ name, email, dob });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl animate-fade-in">
+                <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up
+                </h2>
+                
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            placeholder="e.g. Jane Doe" 
+                            value={name} 
+                            onChange={e => setName(e.target.value)}
+                            autoFocus 
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Email (Optional)</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            placeholder="jane@example.com" 
+                            type="email"
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">D.O.B (Optional)</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            type="date"
+                            value={dob} 
+                            onChange={e => setDob(e.target.value)} 
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-2 mt-6">
+                    <button onClick={onClose} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                    <button onClick={handleSave} className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325]">Sign Up</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- CUSTOMER LIST ---
+const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void, onOpenSignUp: () => void }) => {
     const [search, setSearch] = useState('');
 
     const filteredCustomers = customers.filter(c => 
@@ -102,18 +154,23 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer }: { customers
                     <button onClick={onClose}><X size={20} /></button>
                 </div>
 
-                {/* Search */}
-                <div className="p-4 border-b border-gray-100 bg-gray-50">
-                    <div className="relative">
+                {/* Toolbar */}
+                <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row gap-3">
+                    <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 text-gray-400" size={18} />
                         <input 
                             className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none"
                             placeholder="Search by Name or Loyalty ID..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            autoFocus
                         />
                     </div>
+                    <button 
+                        onClick={onOpenSignUp}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition"
+                    >
+                        <UserPlus size={18} /> Sign Up New
+                    </button>
                 </div>
 
                 {/* List */}
@@ -133,7 +190,10 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer }: { customers
                             ) : (
                                 filteredCustomers.map(c => (
                                     <tr key={c.id} className="hover:bg-gray-50 transition group">
-                                        <td className="px-4 py-3 font-bold text-gray-800">{c.name}</td>
+                                        <td className="px-4 py-3 font-bold text-gray-800">
+                                            {c.name}
+                                            {c.dob && <span className="block text-[10px] text-gray-400 font-normal">🎂 {c.dob}</span>}
+                                        </td>
                                         <td className="px-4 py-3 font-mono text-gray-500 text-xs">{c.loyaltyId}</td>
                                         <td className="px-4 py-3 text-right font-bold text-[#99042E]">{c.points}</td>
                                         <td className="px-4 py-3 text-right">
@@ -529,7 +589,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | 'CUSTOMERS' | null>(null); // Added CUSTOMERS
+  const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | 'CUSTOMERS' | 'SIGNUP' | null>(null);
   const [mobileView, setMobileView] = useState<'PRODUCTS' | 'CART'>('PRODUCTS');
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
@@ -582,6 +642,41 @@ export default function App() {
   useEffect(() => {
      setUsePoints(false);
   }, [customerId]);
+
+  const handleRegisterCustomer = async (data: { name: string, email: string, dob: string }) => {
+      const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
+      const newLoyaltyId = `GFT${randomSixDigit}`;
+      const newId = uuidv4();
+
+      try {
+          // Check for uniqueness (simple version)
+          const q = query(collection(db, "customers"), where("loyaltyId", "==", newLoyaltyId));
+          const snap = await getDocs(q);
+          if(!snap.empty) {
+              alert("Duplicate ID generated. Please try again.");
+              return;
+          }
+
+          await setDoc(doc(db, "customers", newId), {
+              id: newId,
+              loyaltyId: newLoyaltyId,
+              name: data.name,
+              email: data.email,
+              dob: data.dob,
+              points: 0
+          });
+
+          setActiveModal(null);
+          // Show Thank You Alert
+          alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
+          
+          // Optional: Auto-select them for current sale
+          setCustomerId(newLoyaltyId);
+
+      } catch (e: any) {
+          alert("Error signing up: " + e.message);
+      }
+  };
 
   // --- SMART REVERSE ---
   const handleReverseSale = async (saleId: string) => {
@@ -773,7 +868,6 @@ export default function App() {
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
 
-  // --- FIXED: PROCESS SALE LOGIC ---
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -884,7 +978,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v6.0 (Stable)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v7.0 (Sign Up)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1170,6 +1264,14 @@ export default function App() {
                   setCustomerId(c.loyaltyId);
                   setActiveModal(null);
               }}
+              onOpenSignUp={() => setActiveModal('SIGNUP')}
+          />
+      )}
+
+      {activeModal === 'SIGNUP' && (
+          <AddCustomerModal 
+              onClose={() => setActiveModal('CUSTOMERS')} 
+              onSave={handleRegisterCustomer} 
           />
       )}
 
