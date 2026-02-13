@@ -24,7 +24,8 @@ export interface Product {
   stock: number;
 }
 export interface Customer {
-  id: string;
+  id?: string; // Firebase ID
+  loyaltyId: string; // The ID typed in input (e.g. CUST001)
   name: string;
   points: number;
 }
@@ -56,8 +57,8 @@ const INITIAL_INVENTORY: Product[] = [
 ];
 
 const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'CUST001', name: 'John Doe', points: 150 },
-  { id: 'CUST002', name: 'Jane Smith', points: 50 },
+  { loyaltyId: 'CUST001', name: 'John Doe', points: 150 },
+  { loyaltyId: 'CUST002', name: 'Jane Smith', points: 50 },
 ];
 
 // --- 3. COMPONENTS ---
@@ -73,7 +74,7 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
           
         return (
           <div key={i} className={`p-3 rounded-lg text-sm ${bubbleClass}`}>
-            <p className="whitespace-pre-wrap">{m.text || (m.parts && m.parts[0].text)}</p>
+            <p className="whitespace-pre-wrap font-mono text-xs md:text-sm">{m.text || (m.parts && m.parts[0].text)}</p>
           </div>
         );
       })}
@@ -398,20 +399,23 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
 };
 
 // --- 4. MOCK SERVICE ---
+// Updated to accept details for dynamic receipt generation
 class GeminiService {
   state: AppState;
   constructor(initialState: AppState) {
     this.state = initialState;
   }
   syncState(newState: AppState) { this.state = newState; }
-  async sendMessage(_history: any[], prompt: string): Promise<string> {
+  
+  // Now accepts an explicit receipt string
+  async sendMessage(_history: any[], prompt: string, receiptDetail?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); 
     
-    if(prompt.includes("Record sale")) {
-        const id = uuidv4();
-        return `✅ **Receipt Generated**\nDate: ${new Date().toLocaleTimeString()}\nTrans ID: ${id.slice(0,8)}\n\nThank you for shopping at Gift Factory Ja!`;
+    if (receiptDetail) {
+        return receiptDetail;
     }
-    if(prompt.includes("Report")) {
+
+    if(prompt.includes("Generate End of Day Report")) {
         const now = new Date();
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
         const todaySales = this.state.sales.filter(s => s.timestamp >= startOfDay);
@@ -426,7 +430,7 @@ class GeminiService {
 // --- 5. MAIN APP COMPONENT ---
 
 const loadState = (): AppState => {
-  return { inventory: [], customers: INITIAL_CUSTOMERS, sales: [] };
+  return { inventory: [], customers: [], sales: [] };
 };
 
 export default function App() {
@@ -467,9 +471,19 @@ export default function App() {
         setAppState(prev => ({ ...prev, sales: salesData }));
     });
 
+    // Customers Listener
+    const unsubCust = onSnapshot(collection(db, "customers"), (snapshot) => {
+        const custData: Customer[] = snapshot.docs.map(doc => ({ 
+            id: doc.id, 
+            ...doc.data() 
+        } as Customer));
+        setAppState(prev => ({ ...prev, customers: custData }));
+    });
+
     return () => {
         unsubInv();
         unsubSales();
+        unsubCust();
     };
   }, []);
 
@@ -485,47 +499,49 @@ export default function App() {
      setUsePoints(false);
   }, [customerId]);
 
-  // --- SMART REVERSE: Restores Stock ---
+  // --- SMART REVERSE: Restores Stock & Points ---
   const handleReverseSale = async (saleId: string) => {
-      // 1. Find the sale object
       const sale = appState.sales.find(s => s.id === saleId);
-      if (!sale) return alert("Sale not found locally. Try refreshing.");
+      if (!sale) return alert("Sale not found locally.");
 
-      if(!confirm(`Reverse sale ${sale.id.slice(0,6)}?\nThis will return items to inventory.`)) return;
+      if(!confirm(`Reverse sale ${sale.id.slice(0,6)}?\nRestores Inventory & Deducts Points.`)) return;
 
       try {
           const batch = writeBatch(db);
 
-          // 2. Parse Items: "CODE(QTY)|CODE(QTY)"
+          // 1. Restore Inventory
           const items = sale.productCode.split('|');
-
           for (const itemStr of items) {
-              // Regex to match "GFT001(5)" -> Group 1: GFT001, Group 2: 5
               const match = itemStr.match(/(.+)\((\d+)\)/);
               if (match) {
                   const itemCode = match[1];
                   const itemQty = parseInt(match[2]);
-
-                  // Find the inventory document for this code
                   const product = appState.inventory.find(p => p.code === itemCode);
-                  
                   if (product && product.id) {
                       const prodRef = doc(db, "inventory", product.id);
-                      // Update stock locally first for speed, then batch commits
                       batch.update(prodRef, { stock: product.stock + itemQty });
                   }
               }
           }
 
-          // 3. Delete the Sale Record
+          // 2. Revert Customer Points
+          if (sale.customerId !== 'GUEST') {
+              const customer = appState.customers.find(c => c.loyaltyId === sale.customerId);
+              if (customer && customer.id) {
+                  const custRef = doc(db, "customers", customer.id);
+                  // Subtract earned, Add back redeemed
+                  const restoredPoints = customer.points - sale.pointsEarned + sale.pointsRedeemed;
+                  batch.update(custRef, { points: Math.max(0, restoredPoints) });
+              }
+          }
+
+          // 3. Delete Sale
           const saleRef = doc(db, "sales", saleId);
           batch.delete(saleRef);
 
           await batch.commit();
-          // No alert needed, listeners will update UI instantly
 
       } catch (e: any) {
-          console.error("Reverse Error:", e);
           alert("Error reversing sale: " + e.message);
       }
   };
@@ -537,6 +553,10 @@ export default function App() {
           INITIAL_INVENTORY.forEach(p => {
               const ref = doc(collection(db, "inventory"));
               batch.set(ref, p);
+          });
+          INITIAL_CUSTOMERS.forEach(c => {
+              const ref = doc(collection(db, "customers"));
+              batch.set(ref, c);
           });
           await batch.commit();
           alert("✅ Data Synced!");
@@ -632,7 +652,7 @@ export default function App() {
      if (!isNaN(flat)) estimatedDiscount = flat;
   }
   
-  const activeCustomer = appState.customers.find(c => c.id === customerId);
+  const activeCustomer = appState.customers.find(c => c.loyaltyId === customerId);
   const intermediateTotal = Math.max(0, subtotal - estimatedDiscount);
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
@@ -641,15 +661,19 @@ export default function App() {
     if (cart.length === 0) return;
     setIsProcessing(true);
 
+    // --- LOYALTY LOGIC: Floor(Total / 100) ---
+    const pointsEarned = Math.floor(estimatedTotal / 100);
+    const prevPoints = activeCustomer ? activeCustomer.points : 0;
+    const newTotalPoints = prevPoints - pointsToRedeem + pointsEarned;
+
     const now = new Date();
-    // Save Format: CODE(QTY)|CODE(QTY)
     const productCodeString = cart.map(c => `${c.code}(${c.cartQuantity})`).join('|');
 
     const newSale: SalesRecord = {
         id: uuidv4(),
         customerId: customerId || 'GUEST',
         productCode: productCodeString,
-        pointsEarned: Math.floor(estimatedTotal / 100), 
+        pointsEarned: pointsEarned,
         pointsRedeemed: pointsToRedeem,
         total: estimatedTotal,
         date: now.toLocaleDateString() + ' ' + now.toLocaleTimeString(),
@@ -657,8 +681,11 @@ export default function App() {
     };
 
     try {
+      // 1. Save Sale
       await addDoc(collection(db, "sales"), newSale);
       const batch = writeBatch(db);
+      
+      // 2. Update Inventory
       for (const cartItem of cart) {
           const productDoc = appState.inventory.find(p => p.code === cartItem.code);
           if (productDoc && productDoc.id) {
@@ -667,8 +694,29 @@ export default function App() {
               batch.update(ref, { stock: newStock });
           }
       }
+
+      // 3. Update Customer Points (If registered)
+      if (activeCustomer && activeCustomer.id) {
+          const custRef = doc(db, "customers", activeCustomer.id);
+          batch.update(custRef, { points: newTotalPoints });
+      }
+
       await batch.commit();
-      const response = await geminiServiceRef.current!.sendMessage([], "Record sale");
+
+      // 4. Generate Receipt String
+      const receiptText = `✅ **Transaction Complete**
+      
+      **Loyalty Points:**
+      Previous: ${prevPoints}
+      + Earned: ${pointsEarned}
+      - Used: ${pointsToRedeem}
+      ----------------
+      = **Total: ${newTotalPoints}**
+      
+      **Total Paid:** $${estimatedTotal.toLocaleString()}
+      `;
+
+      const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
       setLastReceipt(response);
       setShowReceiptModal(true);
       clearCart();
@@ -707,9 +755,7 @@ export default function App() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           {/* RESPONSIVE BUTTONS: Icon only on Mobile, Icon+Text on Desktop */}
            <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard">
-              {/* CHANGED ICON HERE TO BarChart3 */}
               <BarChart3 size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
            <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Add Product">
@@ -827,15 +873,30 @@ export default function App() {
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
                    <User size={12} /> Customer
                 </label>
+                {activeCustomer && (
+                   <span className="text-xs text-green-600 font-bold bg-green-100 px-2 py-0.5 rounded-full">
+                     {activeCustomer.points} Points
+                   </span>
+                )}
              </div>
              <div className="flex gap-2">
                <input 
-                 className="flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none border-gray-300 focus:ring-[#99042E]"
-                 placeholder="Customer ID (Optional)"
+                 className={`flex-1 border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:outline-none ${customerId && !activeCustomer && customerId !== '999' ? 'border-red-300 focus:ring-red-500 bg-red-50' : 'border-gray-300 focus:ring-[#99042E]'}`}
+                 placeholder="Loyalty ID (e.g. CUST001)"
                  value={customerId}
                  onChange={e => setCustomerId(e.target.value.toUpperCase())}
                />
              </div>
+             {customerId && !activeCustomer && customerId !== '999' && (
+                <div className="mt-1 text-[10px] text-red-500 font-bold">
+                    ID not found.
+                </div>
+             )}
+             {activeCustomer && (
+                <div className="mt-2 text-sm text-[#99042E] font-medium animate-fade-in">
+                   Welcome back, {activeCustomer.name}
+                </div>
+             )}
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -850,6 +911,11 @@ export default function App() {
                     <div className="flex-1">
                        <div className="font-medium text-gray-800">{item.name}</div>
                        <div className="text-xs text-gray-400 font-mono">{item.code}</div>
+                       {item.stock < 5 && (
+                         <div className="text-[10px] text-red-500 flex items-center gap-1 mt-1 font-bold">
+                            <AlertTriangle size={10} /> Low Stock ({item.stock} left)
+                         </div>
+                       )}
                     </div>
                     
                     <div className="flex items-center gap-3 mr-4">
@@ -888,6 +954,28 @@ export default function App() {
                      onChange={e => setDiscountInput(e.target.value)}
                    />
                 </div>
+                
+                {activeCustomer && activeCustomer.points > 0 && (
+                  <div className="flex justify-between items-center text-gray-600 pt-1">
+                     <div className="flex items-center gap-2">
+                        <input 
+                            type="checkbox" 
+                            id="usePoints"
+                            checked={usePoints}
+                            onChange={(e) => setUsePoints(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-[#99042E] focus:ring-[#99042E]"
+                        />
+                        <label htmlFor="usePoints" className="flex items-center gap-1 cursor-pointer select-none">
+                            <Coins size={14} className="text-[#F0C053]" />
+                            Pay with Points
+                        </label>
+                     </div>
+                     <span className={`${usePoints ? 'text-[#99042E] font-bold' : ''}`}>
+                         {usePoints ? `-$${pointsToRedeem.toLocaleString()}` : `${activeCustomer.points} Avail`}
+                     </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between font-bold text-lg text-[#99042E] pt-2 border-t border-gray-200">
                    <span>Total</span>
                    <span>${estimatedTotal.toLocaleString()}</span>
@@ -900,7 +988,7 @@ export default function App() {
                 </button>
                 <button 
                    onClick={handleProcessSale}
-                   disabled={cart.length === 0 || isProcessing}
+                   disabled={cart.length === 0 || isProcessing || (customerId.trim() !== '' && customerId !== '999' && !activeCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
