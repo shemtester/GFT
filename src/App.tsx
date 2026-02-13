@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, TrendingUp, PieChart } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, TrendingUp, PieChart, Package } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -371,6 +371,9 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
 
     const sortedProducts = Object.values(productStats).sort((a,b) => b.qty - a.qty).slice(0, 5);
     const sortedCategories = Object.entries(categoryStats).sort((a,b) => b[1] - a[1]);
+    
+    // INVENTORY SORT (LOWEST STOCK FIRST)
+    const sortedInventory = [...inventory].sort((a,b) => a.stock - b.stock);
 
     const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
     const totalOrders = filteredSales.length;
@@ -440,6 +443,29 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            </div>
+                            {/* --- NEW INVENTORY SECTION --- */}
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2">
+                                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Package size={18} className="text-blue-600" /> Live Inventory Levels</h3>
+                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                                    {sortedInventory.length === 0 ? <p className="text-gray-400 text-sm">No inventory.</p> : sortedInventory.map((p, i) => {
+                                        const stockPct = Math.min(100, (p.stock / 20) * 100); // Assume 20 is "full" for visual
+                                        let barColor = 'bg-green-500';
+                                        if (p.stock < 5) barColor = 'bg-red-500';
+                                        else if (p.stock < 10) barColor = 'bg-orange-500';
+
+                                        return (
+                                            <div key={p.id} className="flex items-center gap-3 bg-white p-2 rounded shadow-sm">
+                                                <div className="w-24 truncate text-xs font-mono text-gray-500">{p.code}</div>
+                                                <div className="flex-1 font-medium text-gray-800 text-sm truncate">{p.name}</div>
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                    <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${stockPct}%` }}></div>
+                                                </div>
+                                                <div className={`w-8 text-right font-bold text-sm ${p.stock < 5 ? 'text-red-500' : 'text-gray-700'}`}>{p.stock}</div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -739,7 +765,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v11.0 (Bulk Entry)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v12.0 (Inventory Visuals)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
