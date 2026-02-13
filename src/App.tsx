@@ -27,7 +27,7 @@ export interface Customer {
   id: string;
   loyaltyId: string;
   name: string;
-  email?: string;
+  email: string; // Changed to mandatory
   dob?: string;
   points: number;
 }
@@ -75,14 +75,15 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- NEW COMPONENT: ADD CUSTOMER MODAL ---
+// --- MODAL: ADD CUSTOMER ---
 const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [dob, setDob] = useState('');
 
     const handleSave = () => {
-        if (!name) return alert("Full Name is required.");
+        // VALIDATION: Now checks for both Name AND Email
+        if (!name || !email) return alert("Full Name and Email are required.");
         onSave({ name, email, dob });
     };
 
@@ -105,7 +106,7 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Email (Optional)</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Email *</label>
                         <input 
                             className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                             placeholder="jane@example.com" 
@@ -141,7 +142,7 @@ const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, 
     const [dob, setDob] = useState(customer.dob || '');
 
     const handleSave = () => {
-        if (!name) return alert("Full Name is required.");
+        if (!name || !email) return alert("Full Name and Email are required.");
         onSave({ ...customer, name, email, dob });
     };
 
@@ -168,7 +169,7 @@ const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, 
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase">Email</label>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Email *</label>
                         <input 
                             className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                             value={email} 
@@ -742,11 +743,14 @@ export default function App() {
               points: 0
           });
 
+          // CLOSE MODAL FIRST
           setActiveModal(null);
-          // Show Thank You Alert
-          alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
           
-          // Optional: Auto-select them for current sale
+          // THEN SHOW ALERT (Tiny delay to ensure modal is gone)
+          setTimeout(() => {
+             alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
+          }, 100);
+          
           setCustomerId(newLoyaltyId);
 
       } catch (e: any) {
@@ -968,6 +972,7 @@ export default function App() {
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
 
+  // --- FIXED: PROCESS SALE LOGIC ---
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -1078,7 +1083,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.0 (Edit/Delete)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.1 (Mandatory Email)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1325,7 +1330,7 @@ export default function App() {
                 <button 
                    onClick={handleProcessSale}
                    // STRICT DISABLED: Pay is disabled if customer ID typed but not found
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999' && !isNewCustomer)}
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
