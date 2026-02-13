@@ -27,7 +27,7 @@ export interface Customer {
   id: string;
   loyaltyId: string;
   name: string;
-  email: string; // Changed to mandatory
+  email: string;
   dob?: string;
   points: number;
 }
@@ -76,15 +76,18 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
 };
 
 // --- MODAL: ADD CUSTOMER ---
-const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
+const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => Promise<void> }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [dob, setDob] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = () => {
-        // VALIDATION: Now checks for both Name AND Email
+    const handleSave = async () => {
         if (!name || !email) return alert("Full Name and Email are required.");
-        onSave({ name, email, dob });
+        
+        setIsSaving(true);
+        await onSave({ name, email, dob });
+        setIsSaving(false);
     };
 
     return (
@@ -102,6 +105,7 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             placeholder="e.g. Jane Doe" 
                             value={name} 
                             onChange={e => setName(e.target.value)}
+                            disabled={isSaving}
                             autoFocus 
                         />
                     </div>
@@ -112,7 +116,8 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             placeholder="jane@example.com" 
                             type="email"
                             value={email} 
-                            onChange={e => setEmail(e.target.value)} 
+                            onChange={e => setEmail(e.target.value)}
+                            disabled={isSaving}
                         />
                     </div>
                     <div>
@@ -121,14 +126,21 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                             className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
                             type="date"
                             value={dob} 
-                            onChange={e => setDob(e.target.value)} 
+                            onChange={e => setDob(e.target.value)}
+                            disabled={isSaving}
                         />
                     </div>
                 </div>
 
                 <div className="flex gap-2 mt-6">
-                    <button onClick={onClose} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
-                    <button onClick={handleSave} className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325]">Sign Up</button>
+                    <button onClick={onClose} disabled={isSaving} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                    <button 
+                        onClick={handleSave} 
+                        disabled={isSaving}
+                        className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325] flex justify-center items-center gap-2"
+                    >
+                        {isSaving ? <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : "Sign Up"}
+                    </button>
                 </div>
             </div>
         </div>
@@ -749,7 +761,7 @@ export default function App() {
           // THEN SHOW ALERT (Tiny delay to ensure modal is gone)
           setTimeout(() => {
              alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
-          }, 100);
+          }, 500);
           
           setCustomerId(newLoyaltyId);
 
@@ -1083,7 +1095,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.1 (Mandatory Email)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.2 (Instant Close)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1330,7 +1342,7 @@ export default function App() {
                 <button 
                    onClick={handleProcessSale}
                    // STRICT DISABLED: Pay is disabled if customer ID typed but not found
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
