@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, ShoppingCart, ArrowUpDown, UserPlus } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -339,8 +339,6 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
                         <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Orders</div>
                         <div className="text-lg md:text-2xl font-bold text-gray-800">{totalOrders}</div>
-                        {/* USED ShoppingCart ICON HERE to prevent unused variable error */}
-                        <div className="hidden"><ShoppingCart /></div> 
                     </div>
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left">
                         <div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Avg Order</div>
@@ -356,9 +354,7 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClos
                                 <th className="px-4 py-3 font-bold w-1/4">Date</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th>
                                 <th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th>
-                                <th className="px-4 py-3 font-bold w-1/4">
-                                    <div className="flex items-center gap-1">Total <ArrowUpDown size={12}/></div>
-                                </th>
+                                <th className="px-4 py-3 font-bold w-1/4">Total</th>
                                 <th className="px-4 py-3 font-bold text-right w-1/4">Act</th>
                             </tr>
                         </thead>
@@ -410,7 +406,7 @@ class GeminiService {
   }
   syncState(newState: AppState) { this.state = newState; }
   
-  // NOTE: '_prompt' has underscore to tell TypeScript it's okay if we don't use it in the function body
+  // NOTE: '_prompt' has underscore to tell TypeScript it's okay if we don't use it
   async sendMessage(_history: any[], _prompt: string, receiptDetail?: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800)); 
     
@@ -761,7 +757,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v2.5</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v2.6 (Stable)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
