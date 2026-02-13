@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, Gift } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -75,7 +75,7 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- NEW COMPONENT: ADD CUSTOMER MODAL ---
+// --- MODAL: ADD CUSTOMER ---
 const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -134,8 +134,68 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
     );
 };
 
+// --- MODAL: EDIT CUSTOMER ---
+const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, onClose: () => void, onSave: (c: Customer) => void }) => {
+    const [name, setName] = useState(customer.name);
+    const [email, setEmail] = useState(customer.email || '');
+    const [dob, setDob] = useState(customer.dob || '');
+
+    const handleSave = () => {
+        if (!name) return alert("Full Name is required.");
+        onSave({ ...customer, name, email, dob });
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl animate-fade-in">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                        <Pencil size={20} className="text-[#99042E]" /> Edit Member
+                    </h2>
+                    <button onClick={onClose}><X size={20}/></button>
+                </div>
+                
+                <div className="space-y-3">
+                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-500 mb-2 font-mono">
+                        ID: {customer.loyaltyId} (Cannot change)
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            value={name} 
+                            onChange={e => setName(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">Email</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase">D.O.B</label>
+                        <input 
+                            className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" 
+                            type="date"
+                            value={dob} 
+                            onChange={e => setDob(e.target.value)} 
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-2 mt-6">
+                    <button onClick={handleSave} className="w-full bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325]">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- CUSTOMER LIST ---
-const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void, onOpenSignUp: () => void }) => {
+const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp, onEditCustomer, onDeleteCustomer }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void, onOpenSignUp: () => void, onEditCustomer: (c: Customer) => void, onDeleteCustomer: (c: Customer) => void }) => {
     const [search, setSearch] = useState('');
 
     const filteredCustomers = customers.filter(c => 
@@ -181,7 +241,7 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp 
                                 <th className="px-4 py-3">Name</th>
                                 <th className="px-4 py-3">ID</th>
                                 <th className="px-4 py-3 text-right">Points</th>
-                                <th className="px-4 py-3 text-right">Action</th>
+                                <th className="px-4 py-3 text-right w-40">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -196,12 +256,27 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp 
                                         </td>
                                         <td className="px-4 py-3 font-mono text-gray-500 text-xs">{c.loyaltyId}</td>
                                         <td className="px-4 py-3 text-right font-bold text-[#99042E]">{c.points}</td>
-                                        <td className="px-4 py-3 text-right">
+                                        <td className="px-4 py-3 text-right flex justify-end gap-1">
                                             <button 
                                                 onClick={() => onSelectCustomer(c)}
-                                                className="bg-gray-100 hover:bg-[#99042E] hover:text-white text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 ml-auto transition"
+                                                className="bg-gray-100 hover:bg-blue-600 hover:text-white text-blue-600 p-2 rounded-lg transition"
+                                                title="Select for Sale"
                                             >
-                                                Select <ArrowUpRight size={14} />
+                                                <ArrowUpRight size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onEditCustomer(c)}
+                                                className="bg-gray-100 hover:bg-orange-500 hover:text-white text-orange-500 p-2 rounded-lg transition"
+                                                title="Edit Details"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button 
+                                                onClick={() => onDeleteCustomer(c)}
+                                                className="bg-gray-100 hover:bg-red-600 hover:text-white text-red-500 p-2 rounded-lg transition"
+                                                title="Delete Member"
+                                            >
+                                                <Trash2 size={16} />
                                             </button>
                                         </td>
                                     </tr>
@@ -585,6 +660,7 @@ export default function App() {
   const [productSearch, setProductSearch] = useState('');
   const [usePoints, setUsePoints] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [restockingProduct, setRestockingProduct] = useState<Product | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
@@ -675,6 +751,30 @@ export default function App() {
 
       } catch (e: any) {
           alert("Error signing up: " + e.message);
+      }
+  };
+
+  const handleUpdateCustomer = async (updatedCustomer: Customer) => {
+      try {
+          const customerRef = doc(db, "customers", updatedCustomer.id);
+          await updateDoc(customerRef, {
+              name: updatedCustomer.name,
+              email: updatedCustomer.email,
+              dob: updatedCustomer.dob
+          });
+          setEditingCustomer(null);
+      } catch (e: any) {
+          alert("Error updating customer: " + e.message);
+      }
+  };
+
+  const handleDeleteCustomer = async (customer: Customer) => {
+      if (!confirm(`Are you sure you want to delete ${customer.name}?\n\nThis action cannot be undone.`)) return;
+      
+      try {
+          await deleteDoc(doc(db, "customers", customer.id));
+      } catch (e: any) {
+          alert("Error deleting customer: " + e.message);
       }
   };
 
@@ -979,7 +1079,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v7.1 (Fixed)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.0 (Edit/Delete)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1226,7 +1326,7 @@ export default function App() {
                 <button 
                    onClick={handleProcessSale}
                    // STRICT DISABLED: Pay is disabled if customer ID typed but not found
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999' && !isNewCustomer)}
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
@@ -1266,6 +1366,8 @@ export default function App() {
                   setActiveModal(null);
               }}
               onOpenSignUp={() => setActiveModal('SIGNUP')}
+              onEditCustomer={(c) => setEditingCustomer(c)}
+              onDeleteCustomer={handleDeleteCustomer}
           />
       )}
 
@@ -1283,6 +1385,14 @@ export default function App() {
             onSave={handleUpdateProduct}
             onDelete={handleDeleteProduct}
         />
+      )}
+
+      {editingCustomer && (
+          <EditCustomerModal
+              customer={editingCustomer}
+              onClose={() => setEditingCustomer(null)}
+              onSave={handleUpdateCustomer}
+          />
       )}
 
       {restockingProduct && (
