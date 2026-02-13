@@ -807,7 +807,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v5.1 (Fixed)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v5.2 (Fixed)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1076,7 +1076,6 @@ export default function App() {
             onReverseSale={handleReverseSale}
             onDeleteLog={handleDeleteLog}
             onSeed={handleSeedData}
-            onImportCustomers={() => alert("Auto-Sync is enabled. Please connect Google Sheets via automation tool.")}
          />
       )}
 
