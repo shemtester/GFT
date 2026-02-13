@@ -75,7 +75,7 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- MODAL: ADD CUSTOMER ---
+// --- MODAL: ADD CUSTOMER (FAIL-SAFE) ---
 const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => Promise<void> }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -86,8 +86,13 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
         if (!name || !email) return alert("Full Name and Email are required.");
         
         setIsSaving(true);
-        await onSave({ name, email, dob });
-        setIsSaving(false);
+        try {
+            await onSave({ name, email, dob });
+        } catch (error: any) {
+            alert("Save Failed: " + error.message);
+        } finally {
+            setIsSaving(false); // GUARANTEED to stop spinner
+        }
     };
 
     return (
@@ -737,37 +742,25 @@ export default function App() {
       const newLoyaltyId = `GFT${randomSixDigit}`;
       const newId = uuidv4();
 
-      try {
-          // Check for uniqueness (simple version)
-          const q = query(collection(db, "customers"), where("loyaltyId", "==", newLoyaltyId));
-          const snap = await getDocs(q);
-          if(!snap.empty) {
-              alert("Duplicate ID generated. Please try again.");
-              return;
-          }
+      // SIMPLIFIED LOGIC: No check for duplicates, just save.
+      await setDoc(doc(db, "customers", newId), {
+          id: newId,
+          loyaltyId: newLoyaltyId,
+          name: data.name,
+          email: data.email,
+          dob: data.dob,
+          points: 0
+      });
 
-          await setDoc(doc(db, "customers", newId), {
-              id: newId,
-              loyaltyId: newLoyaltyId,
-              name: data.name,
-              email: data.email,
-              dob: data.dob,
-              points: 0
-          });
-
-          // CLOSE MODAL FIRST
-          setActiveModal(null);
-          
-          // THEN SHOW ALERT (Tiny delay to ensure modal is gone)
-          setTimeout(() => {
-             alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
-          }, 500);
-          
-          setCustomerId(newLoyaltyId);
-
-      } catch (e: any) {
-          alert("Error signing up: " + e.message);
-      }
+      // CLOSE MODAL FIRST
+      setActiveModal(null);
+      
+      // THEN SHOW ALERT
+      setTimeout(() => {
+         alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}\n(You can use this immediately)`);
+      }, 500);
+      
+      setCustomerId(newLoyaltyId);
   };
 
   const handleUpdateCustomer = async (updatedCustomer: Customer) => {
@@ -984,7 +977,6 @@ export default function App() {
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
 
-  // --- FIXED: PROCESS SALE LOGIC ---
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -1095,7 +1087,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.2 (Instant Close)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v8.3 (Fail-Safe)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
