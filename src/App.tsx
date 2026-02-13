@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, RotateCcw, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, LayoutDashboard, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -31,7 +31,7 @@ export interface Customer {
 export interface SalesRecord {
   id: string;
   customerId: string;
-  productCode: string; // Format: "CODE(QTY)|CODE(QTY)"
+  productCode: string;
   pointsEarned: number;
   pointsRedeemed: number;
   total: number;
@@ -110,7 +110,7 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
+        <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl animate-fade-in">
         <h2 className="font-bold mb-4 text-lg">Add New Product</h2>
         <div className="space-y-3 mb-4">
             <div>
@@ -165,7 +165,7 @@ const EditProductModal = ({ product, onClose, onSave, onDelete }: { product: Pro
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl">
+            <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-xl animate-fade-in">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="font-bold text-lg">Edit Product</h2>
                     <button onClick={onClose}><X size={20} /></button>
@@ -229,7 +229,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-lg w-full max-w-xs shadow-xl">
+            <div className="bg-white p-6 rounded-lg w-full max-w-xs shadow-xl animate-fade-in">
                 <h2 className="font-bold mb-2">Restock Product</h2>
                 <p className="text-sm text-gray-500 mb-4">Adding stock for: <b>{product.name}</b></p>
                 
@@ -283,12 +283,12 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+            <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans animate-fade-in">
                 
                 {/* --- HEADER --- */}
                 <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
                     <h2 className="font-bold text-base md:text-lg flex items-center gap-2">
-                        <RotateCcw size={18} /> Sales Dashboard
+                        <LayoutDashboard size={18} /> Sales Dashboard
                     </h2>
                     <div className="flex gap-2">
                         <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
@@ -451,8 +451,9 @@ export default function App() {
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
-  // --- FIREBASE SYNC ---
+  // --- FIREBASE SYNC (LIVE UPDATES) ---
   useEffect(() => {
+    // Inventory Listener
     const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
         const products: Product[] = snapshot.docs.map(doc => ({ 
             id: doc.id, 
@@ -461,6 +462,7 @@ export default function App() {
         setAppState(prev => ({ ...prev, inventory: products }));
     });
 
+    // Sales Listener
     const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
     const unsubSales = onSnapshot(q, (snapshot) => {
         const salesData: SalesRecord[] = snapshot.docs.map(doc => ({ 
@@ -504,7 +506,6 @@ export default function App() {
           const batch = writeBatch(db);
 
           // 2. Parse Items: "CODE(QTY)|CODE(QTY)"
-          // Split by | to get individual items
           const items = sale.productCode.split('|');
 
           for (const itemStr of items) {
@@ -519,11 +520,8 @@ export default function App() {
                   
                   if (product && product.id) {
                       const prodRef = doc(db, "inventory", product.id);
-                      // Calculate new stock (current + returned)
-                      // Ideally use increment(), but we stick to local calc for simplicity/consistency
+                      // Update stock locally first for speed, then batch commits
                       batch.update(prodRef, { stock: product.stock + itemQty });
-                  } else {
-                      console.warn(`Could not restore stock for ${itemCode} - Product not found.`);
                   }
               }
           }
@@ -533,7 +531,7 @@ export default function App() {
           batch.delete(saleRef);
 
           await batch.commit();
-          alert("✅ Sale reversed & stock restored.");
+          // No alert needed, listeners will update UI instantly
 
       } catch (e: any) {
           console.error("Reverse Error:", e);
@@ -551,7 +549,6 @@ export default function App() {
           });
           await batch.commit();
           alert("✅ Data Synced!");
-          window.location.reload();
       } catch (error: any) {
           alert("❌ Error: " + error.message);
       }
@@ -721,7 +718,7 @@ export default function App() {
         <div className="flex items-center gap-2">
            {/* RESPONSIVE BUTTONS: Icon only on Mobile, Icon+Text on Desktop */}
            <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard">
-              <RotateCcw size={18} /> <span className="hidden md:inline">Dashboard</span>
+              <LayoutDashboard size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
            <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Add Product">
               <PlusCircle size={18} /> <span className="hidden md:inline">Add</span>
