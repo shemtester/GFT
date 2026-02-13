@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, TrendingUp, PieChart } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -34,7 +34,7 @@ export interface Customer {
 export interface SalesRecord {
   id: string;
   customerId: string;
-  productCode: string;
+  productCode: string; // Format: "CODE(QTY)|CODE(QTY)"
   pointsEarned: number;
   pointsRedeemed: number;
   total: number;
@@ -83,24 +83,14 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
 };
 
 // --- MODAL: ADD CUSTOMER ---
-const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => Promise<void> }) => {
+const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [dob, setDob] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
 
-    const handleSave = async () => {
+    const handleSave = () => {
         if (!name || !email) return alert("Full Name and Email are required.");
-        setIsSaving(true);
-        try {
-            // Force a timeout to prevent infinite hanging
-            const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timed out (10s). Check Internet/Rules.")), 10000));
-            await Promise.race([onSave({ name, email, dob }), timeout]);
-        } catch (error: any) {
-            alert("Error saving: " + error.message);
-        } finally {
-            setIsSaving(false);
-        }
+        onSave({ name, email, dob });
     };
 
     return (
@@ -110,15 +100,13 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
                     <UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up
                 </h2>
                 <div className="space-y-3">
-                    <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isSaving} autoFocus /></div>
-                    <div><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isSaving} /></div>
-                    <div><label className="text-xs font-bold text-gray-500 uppercase">D.O.B (Optional)</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="date" value={dob} onChange={e => setDob(e.target.value)} disabled={isSaving} /></div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
+                    <div><label className="text-xs font-bold text-gray-500 uppercase">D.O.B (Optional)</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" type="date" value={dob} onChange={e => setDob(e.target.value)} /></div>
                 </div>
                 <div className="flex gap-2 mt-6">
-                    <button onClick={onClose} disabled={isSaving} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
-                    <button onClick={handleSave} disabled={isSaving} className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325] flex justify-center items-center gap-2">
-                        {isSaving ? <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin"/> : "Sign Up"}
-                    </button>
+                    <button onClick={onClose} className="flex-1 py-3 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
+                    <button onClick={handleSave} className="flex-1 bg-[#99042E] text-white py-3 rounded-lg font-bold hover:bg-[#7a0325]">Sign Up</button>
                 </div>
             </div>
         </div>
@@ -300,8 +288,9 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     );
 };
 
-const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onDeleteLog: (saleId: string) => void, onSeed: () => void }) => {
+const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDeleteLog, onSeed }: { onClose: () => void, sales: SalesRecord[], inventory: Product[], onReverseSale: (saleId: string) => void, onDeleteLog: (saleId: string) => void, onSeed: () => void }) => {
     const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
+    const [viewMode, setViewMode] = useState<'TRANSACTIONS' | 'INSIGHTS'>('TRANSACTIONS');
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredSales = sales.filter(s => {
@@ -311,8 +300,39 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSee
         if (activeTab === 'today') { matchesTime = saleDate.toDateString() === now.toDateString(); }
         else if (activeTab === 'week') { const weekAgo = new Date(); weekAgo.setDate(now.getDate() - 7); matchesTime = saleDate >= weekAgo; }
         else if (activeTab === 'month') { matchesTime = saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear(); }
-        return matchesTime && (s.customerId.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.toLowerCase().includes(searchQuery.toLowerCase()) || s.productCode.toLowerCase().includes(searchQuery.toLowerCase()));
+        return matchesTime;
     });
+
+    const displaySales = filteredSales.filter(s => s.customerId.toLowerCase().includes(searchQuery.toLowerCase()) || s.id.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // ANALYTICS LOGIC
+    const productStats: Record<string, { name: string, qty: number, revenue: number }> = {};
+    const categoryStats: Record<string, number> = {};
+
+    filteredSales.forEach(sale => {
+        const items = sale.productCode.split('|');
+        items.forEach(itemStr => {
+            const match = itemStr.match(/(.+)\((\d+)\)/);
+            if(match) {
+                const code = match[1];
+                const qty = parseInt(match[2]);
+                const product = inventory.find(p => p.code === code);
+                const name = product ? product.name : code;
+                const price = product ? product.price : 0;
+                const category = product?.category || 'Other';
+
+                if(!productStats[code]) productStats[code] = { name, qty: 0, revenue: 0 };
+                productStats[code].qty += qty;
+                productStats[code].revenue += (price * qty);
+
+                if(!categoryStats[category]) categoryStats[category] = 0;
+                categoryStats[category] += (price * qty);
+            }
+        });
+    });
+
+    const sortedProducts = Object.values(productStats).sort((a,b) => b.qty - a.qty).slice(0, 5);
+    const sortedCategories = Object.entries(categoryStats).sort((a,b) => b[1] - a[1]);
 
     const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
     const totalOrders = filteredSales.length;
@@ -323,26 +343,65 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSee
             <div className="bg-white rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden font-sans animate-fade-in">
                 <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
                     <h2 className="font-bold text-base md:text-lg flex items-center gap-2"><BarChart3 size={18} /> Sales Dashboard</h2>
-                    <div className="flex gap-2">
-                        <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
-                        <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data"><CloudUpload size={18} /></button>
-                        <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition"><X size={20} /></button>
+                    <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
+                        <button onClick={() => setViewMode('TRANSACTIONS')} className={`px-3 py-1 rounded text-xs font-bold transition ${viewMode === 'TRANSACTIONS' ? 'bg-white text-[#99042E]' : 'text-white/70 hover:text-white'}`}>Transactions</button>
+                        <button onClick={() => setViewMode('INSIGHTS')} className={`px-3 py-1 rounded text-xs font-bold transition ${viewMode === 'INSIGHTS' ? 'bg-white text-[#99042E]' : 'text-white/70 hover:text-white'}`}>Insights</button>
                     </div>
+                    <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition"><X size={20} /></button>
                 </div>
                 <div className="p-3 border-b border-gray-200 flex flex-col md:flex-row gap-3 justify-between bg-white shrink-0">
                     <div className="flex bg-gray-100 p-1 rounded-lg overflow-x-auto no-scrollbar">{(['today', 'week', 'month', 'all'] as const).map((tab) => (<button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 md:flex-none px-3 py-1.5 rounded-md text-xs md:text-sm font-bold capitalize whitespace-nowrap transition-all ${activeTab === tab ? 'bg-[#99042E] text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}>{tab}</button>))}</div>
-                    <div className="relative w-full md:w-64"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input className="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400" placeholder="Search sales..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>
+                    {viewMode === 'TRANSACTIONS' && <div className="relative w-full md:w-64"><Search className="absolute left-3 top-2.5 text-gray-400" size={16} /><input className="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none placeholder-gray-400" placeholder="Search sales..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}/></div>}
                 </div>
                 <div className="grid grid-cols-3 gap-2 md:gap-4 p-3 bg-gray-50 border-b border-gray-200 shrink-0">
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left"><div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Revenue</div><div className="text-lg md:text-2xl font-bold text-gray-800 flex items-center gap-2 justify-center md:justify-start"><DollarSign size={20} className="text-green-600"/> ${totalRevenue.toLocaleString()}</div></div>
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left"><div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Orders</div><div className="text-lg md:text-2xl font-bold text-gray-800 flex items-center gap-2 justify-center md:justify-start"><ShoppingCart size={20} className="text-blue-600" /> {totalOrders}</div></div>
                     <div className="bg-white p-2 md:p-4 rounded-xl border border-gray-200 shadow-sm text-center md:text-left"><div className="text-gray-400 text-[10px] md:text-xs font-bold uppercase mb-1">Avg Order</div><div className="text-lg md:text-2xl font-bold text-gray-800 flex items-center gap-2 justify-center md:justify-start"><Calendar size={20} className="text-orange-600" /> ${avgOrderValue.toFixed(0)}</div></div>
                 </div>
-                <div className="flex-1 overflow-auto bg-white relative">
-                    <table className="w-full text-sm text-left table-fixed min-w-[350px]"> 
-                        <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10"><tr><th className="px-4 py-3 font-bold w-1/4">Date</th><th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th><th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th><th className="px-4 py-3 font-bold w-1/4">Total</th><th className="px-4 py-3 font-bold text-right w-1/4">Act</th></tr></thead>
-                        <tbody className="divide-y divide-gray-100">{filteredSales.length === 0 ? (<tr><td colSpan={5} className="py-10 text-center text-gray-400">No sales found.</td></tr>) : (filteredSales.map((sale) => (<tr key={sale.id} className="hover:bg-gray-50 transition"><td className="px-4 py-3"><div className="font-medium text-gray-900 truncate">{sale.date.split(' ')[0]}</div><div className="text-[10px] text-gray-400 truncate">{sale.date.split(' ')[1]}</div></td><td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate" title={sale.productCode}>{sale.productCode}</td><td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate">{sale.customerId}</td><td className="px-4 py-3 font-bold text-gray-800">${sale.total.toLocaleString()}</td><td className="px-4 py-3 text-right flex justify-end gap-1"><button onClick={() => onReverseSale(sale.id)} className="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition" title="Reverse">Rev</button><button onClick={() => onDeleteLog(sale.id)} className="text-gray-400 hover:text-red-600 p-1 rounded transition" title="Delete"><Trash2 size={16} /></button></td></tr>)))}</tbody>
-                    </table>
+                
+                <div className="flex-1 overflow-auto bg-white relative p-4">
+                    {viewMode === 'TRANSACTIONS' ? (
+                        <table className="w-full text-sm text-left table-fixed min-w-[350px]"> 
+                            <thead className="text-xs text-gray-500 uppercase bg-gray-100 sticky top-0 z-10"><tr><th className="px-4 py-3 font-bold w-1/4">Date</th><th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Items</th><th className="px-4 py-3 font-bold hidden md:table-cell w-auto">Cust</th><th className="px-4 py-3 font-bold w-1/4">Total</th><th className="px-4 py-3 font-bold text-right w-1/4">Act</th></tr></thead>
+                            <tbody className="divide-y divide-gray-100">{displaySales.length === 0 ? (<tr><td colSpan={5} className="py-10 text-center text-gray-400">No sales found.</td></tr>) : (displaySales.map((sale) => (<tr key={sale.id} className="hover:bg-gray-50 transition"><td className="px-4 py-3"><div className="font-medium text-gray-900 truncate">{sale.date.split(' ')[0]}</div><div className="text-[10px] text-gray-400 truncate">{sale.date.split(' ')[1]}</div></td><td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate" title={sale.productCode}>{sale.productCode}</td><td className="px-4 py-3 hidden md:table-cell text-gray-600 truncate">{sale.customerId}</td><td className="px-4 py-3 font-bold text-gray-800">${sale.total.toLocaleString()}</td><td className="px-4 py-3 text-right flex justify-end gap-1"><button onClick={() => onReverseSale(sale.id)} className="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-bold transition" title="Reverse">Rev</button><button onClick={() => onDeleteLog(sale.id)} className="text-gray-400 hover:text-red-600 p-1 rounded transition" title="Delete"><Trash2 size={16} /></button></td></tr>)))}</tbody>
+                        </table>
+                    ) : (
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><TrendingUp size={18} className="text-[#99042E]" /> Top 5 Popular Items</h3>
+                                <div className="space-y-2">
+                                    {sortedProducts.length === 0 ? <p className="text-gray-400 text-sm">No sales data yet.</p> : sortedProducts.map((p, i) => (
+                                        <div key={i} className="flex justify-between items-center bg-white p-2 rounded shadow-sm">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-[#99042E] w-6 text-center">#{i+1}</span>
+                                                <span className="text-sm font-medium text-gray-800 truncate max-w-[120px]" title={p.name}>{p.name}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-bold text-sm">{p.qty} Sold</div>
+                                                <div className="text-[10px] text-gray-400">${p.revenue.toLocaleString()}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><PieChart size={18} className="text-orange-500" /> Revenue by Category</h3>
+                                <div className="space-y-2">
+                                    {sortedCategories.length === 0 ? <p className="text-gray-400 text-sm">No data.</p> : sortedCategories.map(([cat, amount], i) => (
+                                        <div key={i} className="flex flex-col gap-1">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="font-medium text-gray-600">{cat}</span>
+                                                <span className="font-bold text-gray-900">${amount.toLocaleString()}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                                                <div className="bg-[#99042E] h-full rounded-full" style={{ width: `${(amount / totalRevenue) * 100}%` }}></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -355,7 +414,6 @@ class GeminiService {
   constructor(initialState: AppState) { this.state = initialState; }
   syncState(newState: AppState) { this.state = newState; }
   async sendMessage(_history: any[], _prompt: string, receiptDetail?: string): Promise<string> {
-    // ⚠️ REMOVED ARTIFICIAL DELAY FOR SPEED
     if (receiptDetail) return receiptDetail;
     return "AI processing complete.";
   }
@@ -406,38 +464,29 @@ export default function App() {
   useEffect(() => { if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState); }, [appState]);
   useEffect(() => { setUsePoints(false); }, [customerId]);
 
-  const handleRegisterCustomer = async (data: { name: string, email: string, dob: string }) => {
+  const handleRegisterCustomer = (data: { name: string, email: string, dob: string }) => {
       const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
       const newLoyaltyId = `GFT${randomSixDigit}`;
       const newId = uuidv4();
 
-      // CLOSE MODAL FIRST (Optimistic UI)
       setActiveModal(null);
+      setTimeout(() => {
+         alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}`);
+      }, 300);
       
-      try {
-          const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Database timed out. Check Rules.")), 10000));
-          
-          await Promise.race([
-              setDoc(doc(db, "customers", newId), {
-                  id: newId,
-                  loyaltyId: newLoyaltyId,
-                  name: data.name,
-                  email: data.email,
-                  dob: data.dob,
-                  points: 0
-              }),
-              timeout
-          ]);
-          
-          // Show Alert AFTER save confirms (or fails)
-          setTimeout(() => {
-             alert(`🎉 Welcome, ${data.name}!\n\nYour Loyalty ID is: ${newLoyaltyId}`);
-          }, 300);
-          
-          setCustomerId(newLoyaltyId);
-      } catch (e: any) {
-          alert("Error saving customer: " + e.message + "\n\nIs your database online?");
-      }
+      setCustomerId(newLoyaltyId);
+
+      setDoc(doc(db, "customers", newId), {
+          id: newId,
+          loyaltyId: newLoyaltyId,
+          name: data.name,
+          email: data.email,
+          dob: data.dob,
+          points: 0
+      }).catch(err => {
+          console.error("Failed to save customer to cloud:", err);
+          alert("Warning: Saved locally only. Check internet connection.");
+      });
   };
 
   const handleUpdateCustomer = async (updatedCustomer: Customer) => {
@@ -493,7 +542,7 @@ export default function App() {
   };
 
   const handleSeedData = async () => {
-      if (!confirm("Upload Initial Data to Firebase?")) return;
+      if (!confirm("Upload Initial Data to Firebase? This will overwrite specific IDs.")) return;
       try {
           const batch = writeBatch(db);
           INITIAL_INVENTORY.forEach(p => { batch.set(doc(db, "inventory", p.id), p); });
@@ -592,7 +641,6 @@ export default function App() {
     const newSaleId = uuidv4();
 
     try {
-      // TIMEOUT WRAPPER FOR SALE
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Sale timed out (10s). Check Rules/Connection.")), 10000));
 
       const salePromise = async () => {
@@ -643,7 +691,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v9.1 (Timeout Fix)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v10.0 (Analytics)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
@@ -716,7 +764,7 @@ export default function App() {
       </div>
 
       {activeModal === 'INVENTORY' && (<AddInventoryModal onClose={() => setActiveModal(null)} onSave={handleAddProduct} />)}
-      {activeModal === 'SALES' && (<SalesDashboardModal sales={appState.sales} onClose={() => setActiveModal(null)} onReverseSale={handleReverseSale} onDeleteLog={handleDeleteLog} onSeed={handleSeedData} />)}
+      {activeModal === 'SALES' && (<SalesDashboardModal sales={appState.sales} inventory={appState.inventory} onClose={() => setActiveModal(null)} onReverseSale={handleReverseSale} onDeleteLog={handleDeleteLog} onSeed={handleSeedData} />)}
       {activeModal === 'CUSTOMERS' && (<CustomerListModal customers={appState.customers} onClose={() => setActiveModal(null)} onSelectCustomer={(c) => { setCustomerId(c.loyaltyId); setActiveModal(null); }} onOpenSignUp={() => setActiveModal('SIGNUP')} onEditCustomer={(c) => setEditingCustomer(c)} onDeleteCustomer={handleDeleteCustomer} />)}
       {activeModal === 'SIGNUP' && (<AddCustomerModal onClose={() => setActiveModal('CUSTOMERS')} onSave={handleRegisterCustomer} />)}
       {editingProduct && (<EditProductModal product={editingProduct} onClose={() => setEditingProduct(null)} onSave={handleUpdateProduct} onDelete={handleDeleteProduct} />)}
