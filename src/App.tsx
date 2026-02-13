@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, Gift } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -75,7 +75,7 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- MODAL: ADD CUSTOMER ---
+// --- NEW COMPONENT: ADD CUSTOMER MODAL ---
 const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -759,8 +759,8 @@ export default function App() {
           const customerRef = doc(db, "customers", updatedCustomer.id);
           await updateDoc(customerRef, {
               name: updatedCustomer.name,
-              email: updatedCustomer.email,
-              dob: updatedCustomer.dob
+              email: updatedCustomer.email || '',
+              dob: updatedCustomer.dob || ''
           });
           setEditingCustomer(null);
       } catch (e: any) {
@@ -968,7 +968,6 @@ export default function App() {
   const pointsToRedeem = usePoints && activeCustomer ? Math.min(activeCustomer.points, intermediateTotal) : 0;
   const estimatedTotal = Math.max(0, intermediateTotal - pointsToRedeem);
 
-  // --- FIXED: PROCESS SALE LOGIC ---
   const handleProcessSale = async () => {
     if (cart.length === 0) return;
     setIsProcessing(true);
@@ -1326,7 +1325,7 @@ export default function App() {
                 <button 
                    onClick={handleProcessSale}
                    // STRICT DISABLED: Pay is disabled if customer ID typed but not found
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
