@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -80,6 +80,83 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
       })}
     </div>
   );
+};
+
+// --- NEW COMPONENT: CUSTOMER LIST ---
+const CustomerListModal = ({ customers, onClose, onSelectCustomer }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void }) => {
+    const [search, setSearch] = useState('');
+
+    const filteredCustomers = customers.filter(c => 
+        c.name.toLowerCase().includes(search.toLowerCase()) || 
+        c.loyaltyId.toLowerCase().includes(search.toLowerCase())
+    );
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-2xl h-[80vh] flex flex-col shadow-2xl overflow-hidden font-sans animate-fade-in">
+                {/* Header */}
+                <div className="bg-[#99042E] p-4 flex justify-between items-center text-white shrink-0">
+                    <h2 className="font-bold text-lg flex items-center gap-2">
+                        <Users size={20} /> Customer Directory
+                    </h2>
+                    <button onClick={onClose}><X size={20} /></button>
+                </div>
+
+                {/* Search */}
+                <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                        <input 
+                            className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none"
+                            placeholder="Search by Name or Loyalty ID..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            autoFocus
+                        />
+                    </div>
+                </div>
+
+                {/* List */}
+                <div className="flex-1 overflow-y-auto p-2">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-gray-500 uppercase bg-white sticky top-0">
+                            <tr>
+                                <th className="px-4 py-3">Name</th>
+                                <th className="px-4 py-3">ID</th>
+                                <th className="px-4 py-3 text-right">Points</th>
+                                <th className="px-4 py-3 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {filteredCustomers.length === 0 ? (
+                                <tr><td colSpan={4} className="text-center py-8 text-gray-400">No customers found.</td></tr>
+                            ) : (
+                                filteredCustomers.map(c => (
+                                    <tr key={c.id} className="hover:bg-gray-50 transition group">
+                                        <td className="px-4 py-3 font-bold text-gray-800">{c.name}</td>
+                                        <td className="px-4 py-3 font-mono text-gray-500 text-xs">{c.loyaltyId}</td>
+                                        <td className="px-4 py-3 text-right font-bold text-[#99042E]">{c.points}</td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button 
+                                                onClick={() => onSelectCustomer(c)}
+                                                className="bg-gray-100 hover:bg-[#99042E] hover:text-white text-gray-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 ml-auto transition"
+                                            >
+                                                Select <ArrowUpRight size={14} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div className="p-3 bg-gray-50 text-xs text-center text-gray-400 border-t border-gray-100">
+                    Showing {filteredCustomers.length} members
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product) => void }) => {
@@ -452,7 +529,7 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<string | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
-  const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | null>(null);
+  const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | 'CUSTOMERS' | null>(null); // Added CUSTOMERS
   const [mobileView, setMobileView] = useState<'PRODUCTS' | 'CART'>('PRODUCTS');
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
@@ -807,7 +884,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v5.2 (Fixed)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v6.0 (Stable)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -815,6 +892,12 @@ export default function App() {
            <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300">
               <Wifi size={12} /> Live DB
            </div>
+           
+           {/* NEW CUSTOMER LIST BUTTON */}
+           <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory">
+              <Users size={18} /> <span className="hidden md:inline">Customers</span>
+           </button>
+
            <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard">
               <BarChart3 size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
@@ -1048,7 +1131,7 @@ export default function App() {
                 <button 
                    onClick={handleProcessSale}
                    // STRICT DISABLED: Pay is disabled if customer ID typed but not found
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
@@ -1077,6 +1160,17 @@ export default function App() {
             onDeleteLog={handleDeleteLog}
             onSeed={handleSeedData}
          />
+      )}
+
+      {activeModal === 'CUSTOMERS' && (
+          <CustomerListModal 
+              customers={appState.customers} 
+              onClose={() => setActiveModal(null)}
+              onSelectCustomer={(c) => {
+                  setCustomerId(c.loyaltyId);
+                  setActiveModal(null);
+              }}
+          />
       )}
 
       {editingProduct && (
