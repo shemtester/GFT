@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, LayoutDashboard, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, RefreshCw, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, DollarSign, PackagePlus, CloudUpload, Calendar, ShoppingCart, ArrowUpDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -251,7 +251,7 @@ const RestockModal = ({ product, onClose, onRestock }: { product: Product, onClo
     );
 };
 
-const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onRefresh: () => void, onSeed: () => void }) => {
+const SalesDashboardModal = ({ onClose, sales, onReverseSale, onSeed }: { onClose: () => void, sales: SalesRecord[], onReverseSale: (saleId: string) => void, onSeed: () => void }) => {
     const [activeTab, setActiveTab] = useState<'today' | 'week' | 'month' | 'all'>('today');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -288,15 +288,14 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onRefresh, onSeed 
                 {/* --- HEADER --- */}
                 <div className="bg-[#99042E] p-3 md:p-4 flex justify-between items-center text-white shrink-0">
                     <h2 className="font-bold text-base md:text-lg flex items-center gap-2">
-                        <LayoutDashboard size={18} /> Sales Dashboard
+                        {/* CHANGED ICON HERE TO BarChart3 */}
+                        <BarChart3 size={18} /> Sales Dashboard
                     </h2>
                     <div className="flex gap-2">
                         <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
                             <CloudUpload size={18} />
                         </button>
-                        <button onClick={onRefresh} className="hover:bg-white/10 p-2 rounded transition" title="Refresh">
-                            <RefreshCw size={18} />
-                        </button>
+                        {/* REMOVED REFRESH BUTTON (AUTO-LIVE) */}
                         <button onClick={onClose} className="hover:bg-white/10 p-2 rounded transition">
                             <X size={20} />
                         </button>
@@ -489,10 +488,6 @@ export default function App() {
   useEffect(() => {
      setUsePoints(false);
   }, [customerId]);
-
-  const handleRefreshData = () => {
-    window.location.reload();
-  };
 
   // --- SMART REVERSE: Restores Stock ---
   const handleReverseSale = async (saleId: string) => {
@@ -718,7 +713,8 @@ export default function App() {
         <div className="flex items-center gap-2">
            {/* RESPONSIVE BUTTONS: Icon only on Mobile, Icon+Text on Desktop */}
            <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard">
-              <LayoutDashboard size={18} /> <span className="hidden md:inline">Dashboard</span>
+              {/* CHANGED ICON HERE TO BarChart3 */}
+              <BarChart3 size={18} /> <span className="hidden md:inline">Dashboard</span>
            </button>
            <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Add Product">
               <PlusCircle size={18} /> <span className="hidden md:inline">Add</span>
@@ -929,7 +925,6 @@ export default function App() {
             sales={appState.sales} 
             onClose={() => setActiveModal(null)} 
             onReverseSale={handleReverseSale}
-            onRefresh={handleRefreshData}
             onSeed={handleSeedData}
          />
       )}
