@@ -82,9 +82,6 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// ... [Inventory Modals remain unchanged for brevity, paste them here if you need them to be different, otherwise standard ones apply] ...
-// FOR THE SAKE OF COMPLETENESS, I AM INCLUDING THE FULL MODAL CODE BELOW SO YOU CAN COPY-PASTE 1 FILE.
-
 const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (p: Product) => void }) => {
   const [category, setCategory] = useState('Rings');
   const [code, setCode] = useState('');
@@ -296,6 +293,9 @@ const SalesDashboardModal = ({ onClose, sales, onReverseSale, onDeleteLog, onSee
                         <BarChart3 size={18} /> Sales Dashboard
                     </h2>
                     <div className="flex gap-2">
+                        <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300">
+                            <Wifi size={12} /> Live DB
+                        </div>
                         <button onClick={onSeed} className="hover:bg-white/10 p-2 rounded transition" title="Upload Data">
                             <CloudUpload size={18} />
                         </button>
@@ -807,7 +807,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div>
           <div className="flex flex-col justify-center">
-            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v5.0 (Live)</span></h1>
+            <h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v5.1 (Fixed)</span></h1>
             <p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p>
           </div>
         </div>
@@ -1047,8 +1047,8 @@ export default function App() {
                 </button>
                 <button 
                    onClick={handleProcessSale}
-                   // STRICT DISABLED: Disable if NO ID or INVALID ID (unless 999 or empty for guest)
-                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !isValidLoyaltyId && customerId !== '999')}
+                   // STRICT DISABLED: Pay is disabled if customer ID typed but not found
+                   disabled={cart.length === 0 || isProcessing || (customerId.length > 0 && !activeCustomer && customerId !== '999' && !isNewCustomer)}
                    className="px-4 py-3 rounded-xl bg-[#99042E] text-white font-bold hover:bg-[#7a0325] disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex justify-center items-center gap-2"
                 >
                    {isProcessing ? (
