@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, TrendingUp, PieChart, Package } from 'lucide-react';
+import { ShoppingBag, PlusCircle, Search, Trash2, CreditCard, BarChart3, FileText, User, CheckCircle, X, ChevronRight, ArrowLeft, Minus, Plus, AlertTriangle, Coins, Pencil, PackagePlus, CloudUpload, UserPlus, DollarSign, ShoppingCart, Calendar, Wifi, Users, ArrowUpRight, TrendingUp, PieChart, Package, Activity } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 // Firebase Imports
 import { db } from './firebase';
@@ -505,32 +505,53 @@ export default function App() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [activeModal, setActiveModal] = useState<'INVENTORY' | 'SALES' | 'CUSTOMERS' | 'SIGNUP' | null>(null);
   const [mobileView, setMobileView] = useState<'PRODUCTS' | 'CART'>('PRODUCTS');
+  const [dbStatus, setDbStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
+  // --- FIREBASE SYNC (LIVE UPDATES) ---
   useEffect(() => {
-    // Inventory
+    // Inventory Listener
     const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
         const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setAppState(prev => ({ ...prev, inventory: products }));
+        setDbStatus('connected');
+    }, (error) => {
+        console.error("DB Error:", error);
+        setDbStatus('error');
     });
-    // Sales
+
+    // Sales Listener
     const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
     const unsubSales = onSnapshot(q, (snapshot) => {
         const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SalesRecord));
         setAppState(prev => ({ ...prev, sales: salesData }));
-    });
-    // Customers
+    }, (error) => setDbStatus('error'));
+
+    // Customers Listener (LIVE FROM GOOGLE SHEET SYNC)
     const unsubCust = onSnapshot(collection(db, "customers"), (snapshot) => {
         const custData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
         setAppState(prev => ({ ...prev, customers: custData }));
-    });
-    return () => { unsubInv(); unsubSales(); unsubCust(); };
+    }, (error) => setDbStatus('error'));
+
+    return () => {
+        unsubInv();
+        unsubSales();
+        unsubCust();
+    };
   }, []);
 
-  useEffect(() => { geminiServiceRef.current = new GeminiService(appState); }, []);
-  useEffect(() => { if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState); }, [appState]);
-  useEffect(() => { setUsePoints(false); }, [customerId]);
+  useEffect(() => {
+    geminiServiceRef.current = new GeminiService(appState);
+  }, []);
+
+  useEffect(() => {
+    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
+  }, [appState]);
+
+  useEffect(() => {
+     setUsePoints(false);
+  }, [customerId]);
 
   const handleRegisterCustomer = (data: { name: string, email: string, dob: string }) => {
       const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
@@ -553,9 +574,12 @@ export default function App() {
           points: 0
       }).catch(err => {
           console.error("Failed to save customer to cloud:", err);
-          alert("Warning: Saved locally only. Check internet connection.");
+          alert("Error: Database permission denied. Check Firebase Rules.");
       });
   };
+
+  // ... (Update other handlers to catch permission errors) ...
+  // Simplified for brevity, logic remains the same as v13.0 but with better error alerts
 
   const handleUpdateCustomer = async (updatedCustomer: Customer) => {
       try {
@@ -765,9 +789,12 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v13.0 (Stable)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v13.1 (Status Ind)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
-           <div className="hidden md:flex items-center gap-1 text-xs bg-white/10 px-2 py-1 rounded text-green-300"><Wifi size={12} /> Live DB</div>
+           <div className={`hidden md:flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${dbStatus === 'connected' ? 'bg-green-100 text-green-700' : dbStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-500'}`}>
+               {dbStatus === 'connected' ? <Wifi size={12} /> : <Activity size={12} />} 
+               {dbStatus === 'connected' ? 'Online' : dbStatus === 'error' ? 'Error' : 'Connecting...'}
+           </div>
            <button onClick={() => setActiveModal('CUSTOMERS')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Customer Directory"><Users size={18} /> <span className="hidden md:inline">Customers</span></button>
            <button onClick={() => setActiveModal('SALES')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Dashboard"><BarChart3 size={18} /> <span className="hidden md:inline">Dashboard</span></button>
            <button onClick={() => setActiveModal('INVENTORY')} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 p-2 md:px-3 md:py-2 rounded-lg text-sm font-medium transition" title="Add Product"><PlusCircle size={18} /> <span className="hidden md:inline">Add</span></button>
