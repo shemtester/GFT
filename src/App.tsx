@@ -174,6 +174,7 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp,
     );
 };
 
+// --- BULK ADD INVENTORY MODAL ---
 const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (products: Product[]) => void }) => {
   const generateCode = (cat: string) => {
       const random = Math.floor(100000 + Math.random() * 900000);
@@ -696,7 +697,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v13.0 (Lint Free)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v14.0 (Strict Mode)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className={`hidden md:flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${dbStatus === 'connected' ? 'bg-green-100 text-green-700' : dbStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-500'}`}>
                {dbStatus === 'connected' ? <Wifi size={12} /> : <Activity size={12} />} 
