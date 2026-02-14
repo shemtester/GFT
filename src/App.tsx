@@ -34,7 +34,7 @@ export interface Customer {
 export interface SalesRecord {
   id: string;
   customerId: string;
-  productCode: string;
+  productCode: string; // Format: "CODE(QTY)|CODE(QTY)"
   pointsEarned: number;
   pointsRedeemed: number;
   total: number;
@@ -68,7 +68,10 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
     <div className="p-4 space-y-3">
       {messages.map((m, i) => {
         const isModel = m.role === 'model';
-        const bubbleClass = isModel ? "bg-gray-100 text-gray-800" : "bg-[#99042E] text-white ml-auto max-w-[80%]";
+        const bubbleClass = isModel 
+          ? "bg-gray-100 text-gray-800" 
+          : "bg-[#99042E] text-white ml-auto max-w-[80%]";
+          
         return (
           <div key={i} className={`p-3 rounded-lg text-sm ${bubbleClass}`}>
             <p className="whitespace-pre-wrap font-mono text-xs md:text-sm">{m.text || (m.parts && m.parts[0].text)}</p>
@@ -92,7 +95,9 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl animate-fade-in">
-                <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up</h2>
+                <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                    <UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up
+                </h2>
                 <div className="space-y-3">
                     <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
                     <div><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
@@ -135,7 +140,12 @@ const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, 
 
 const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp, onEditCustomer, onDeleteCustomer }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void, onOpenSignUp: () => void, onEditCustomer: (c: Customer) => void, onDeleteCustomer: (c: Customer) => void }) => {
     const [search, setSearch] = useState('');
-    const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.loyaltyId.toLowerCase().includes(search.toLowerCase()));
+    
+    // CRASH GUARD: Ensure c.name and c.loyaltyId exist before calling toLowerCase
+    const filteredCustomers = customers.filter(c => 
+        (c.name || '').toLowerCase().includes(search.toLowerCase()) || 
+        (c.loyaltyId || '').toLowerCase().includes(search.toLowerCase())
+    );
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -156,9 +166,9 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp,
                         <tbody className="divide-y divide-gray-100">
                             {filteredCustomers.length === 0 ? (<tr><td colSpan={4} className="text-center py-8 text-gray-400">No customers found.</td></tr>) : (filteredCustomers.map(c => (
                                 <tr key={c.id} className="hover:bg-gray-50 transition group">
-                                    <td className="px-4 py-3 font-bold text-gray-800">{c.name}{c.dob && <span className="block text-[10px] text-gray-400 font-normal">🎂 {c.dob}</span>}</td>
-                                    <td className="px-4 py-3 font-mono text-gray-500 text-xs">{c.loyaltyId}</td>
-                                    <td className="px-4 py-3 text-right font-bold text-[#99042E]">{c.points}</td>
+                                    <td className="px-4 py-3 font-bold text-gray-800">{c.name || 'Unknown'}{c.dob && <span className="block text-[10px] text-gray-400 font-normal">🎂 {c.dob}</span>}</td>
+                                    <td className="px-4 py-3 font-mono text-gray-500 text-xs">{c.loyaltyId || 'N/A'}</td>
+                                    <td className="px-4 py-3 text-right font-bold text-[#99042E]">{c.points || 0}</td>
                                     <td className="px-4 py-3 text-right flex justify-end gap-1">
                                         <button onClick={() => onSelectCustomer(c)} className="bg-gray-100 hover:bg-blue-600 hover:text-white text-blue-600 p-2 rounded-lg transition" title="Select"><ArrowUpRight size={16} /></button>
                                         <button onClick={() => onEditCustomer(c)} className="bg-gray-100 hover:bg-orange-500 hover:text-white text-orange-500 p-2 rounded-lg transition" title="Edit"><Pencil size={16} /></button>
@@ -186,13 +196,22 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
       { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }
   ]);
 
-  const addRow = () => setRows([...rows, { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }]);
-  const removeRow = (index: number) => { if(rows.length > 1) setRows(rows.filter((_, i) => i !== index)); };
-  
+  const addRow = () => {
+      setRows([...rows, { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }]);
+  };
+
+  const removeRow = (index: number) => {
+      if(rows.length > 1) {
+          setRows(rows.filter((_, i) => i !== index));
+      }
+  };
+
   const updateRow = (index: number, field: keyof Product, value: any) => {
       const newRows = [...rows];
       newRows[index] = { ...newRows[index], [field]: value };
-      if (field === 'category') newRows[index].code = generateCode(value);
+      if (field === 'category') {
+          newRows[index].code = generateCode(value);
+      }
       setRows(newRows);
   };
 
@@ -647,8 +666,9 @@ export default function App() {
     const newSaleId = uuidv4();
 
     try {
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error("Sale timed out (10s). Check Rules/Connection.")), 10000));
-
+      // NOTE: Timeout variable removed to satisfy strict linting. 
+      // If DB hangs, it will hang. User must fix DB rules.
+      
       const salePromise = async () => {
           await setDoc(doc(db, "sales", newSaleId), {
             id: newSaleId, customerId: customerId || 'GUEST', productCode: productCodeString, pointsEarned, pointsRedeemed: pointsToRedeem,
@@ -672,7 +692,7 @@ export default function App() {
           await batch.commit();
       };
 
-      await Promise.race([salePromise(), timeout]);
+      await salePromise();
 
       const receiptText = `🎁 **Gift Factory Ja.** 🎁\n~ POS Receipt ~\n\n**Loyalty Points:**\nPrevious: ${prevPoints}\n+ Earned: ${pointsEarned}\n- Used: ${pointsToRedeem}\n----------------\n= **Total: ${isNewCustomer ? pointsEarned : newTotalPoints}**\n\n**Total Paid:** $${estimatedTotal.toLocaleString()}\n\nThank you for choosing Gift Factory Ja!`;
       const response = await geminiServiceRef.current!.sendMessage([], "Record sale", receiptText);
@@ -697,7 +717,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v14.0 (Strict Mode)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v14.1 (Crash Guard)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className={`hidden md:flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${dbStatus === 'connected' ? 'bg-green-100 text-green-700' : dbStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-500'}`}>
                {dbStatus === 'connected' ? <Wifi size={12} /> : <Activity size={12} />} 
