@@ -34,7 +34,7 @@ export interface Customer {
 export interface SalesRecord {
   id: string;
   customerId: string;
-  productCode: string; // Format: "CODE(QTY)|CODE(QTY)"
+  productCode: string;
   pointsEarned: number;
   pointsRedeemed: number;
   total: number;
@@ -50,7 +50,7 @@ export interface CartItem extends Product {
   cartQuantity: number;
 }
 
-// --- 2. MOCK DATA (Fallback) ---
+// --- 2. MOCK DATA ---
 const INITIAL_INVENTORY: Product[] = [
   { id: '1', code: 'RNG839201', category: 'Rings', name: 'Gold Band Ring', price: 1500, stock: 20 },
   { id: '2', code: 'NK293841', category: 'Necklace', name: 'Silver Chain', price: 2500, stock: 10 },
@@ -68,10 +68,7 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
     <div className="p-4 space-y-3">
       {messages.map((m, i) => {
         const isModel = m.role === 'model';
-        const bubbleClass = isModel 
-          ? "bg-gray-100 text-gray-800" 
-          : "bg-[#99042E] text-white ml-auto max-w-[80%]";
-          
+        const bubbleClass = isModel ? "bg-gray-100 text-gray-800" : "bg-[#99042E] text-white ml-auto max-w-[80%]";
         return (
           <div key={i} className={`p-3 rounded-lg text-sm ${bubbleClass}`}>
             <p className="whitespace-pre-wrap font-mono text-xs md:text-sm">{m.text || (m.parts && m.parts[0].text)}</p>
@@ -82,7 +79,6 @@ const ChatInterface = ({ messages }: { messages: ChatMessage[] }) => {
   );
 };
 
-// --- MODAL: ADD CUSTOMER ---
 const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c: { name: string, email: string, dob: string }) => void }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -96,9 +92,7 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-2xl animate-fade-in">
-                <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-                    <UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up
-                </h2>
+                <h2 className="font-bold text-lg mb-4 flex items-center gap-2"><UserPlus size={20} className="text-[#99042E]" /> New Member Sign Up</h2>
                 <div className="space-y-3">
                     <div><label className="text-xs font-bold text-gray-500 uppercase">Full Name *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="e.g. Jane Doe" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
                     <div><label className="text-xs font-bold text-gray-500 uppercase">Email *</label><input className="w-full border border-gray-300 p-3 rounded focus:ring-2 focus:ring-[#99042E] outline-none" placeholder="jane@example.com" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
@@ -113,7 +107,6 @@ const AddCustomerModal = ({ onClose, onSave }: { onClose: () => void, onSave: (c
     );
 };
 
-// --- MODAL: EDIT CUSTOMER ---
 const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, onClose: () => void, onSave: (c: Customer) => void }) => {
     const [name, setName] = useState(customer.name);
     const [email, setEmail] = useState(customer.email || '');
@@ -140,7 +133,6 @@ const EditCustomerModal = ({ customer, onClose, onSave }: { customer: Customer, 
     );
 };
 
-// --- CUSTOMER LIST ---
 const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp, onEditCustomer, onDeleteCustomer }: { customers: Customer[], onClose: () => void, onSelectCustomer: (c: Customer) => void, onOpenSignUp: () => void, onEditCustomer: (c: Customer) => void, onDeleteCustomer: (c: Customer) => void }) => {
     const [search, setSearch] = useState('');
     const filteredCustomers = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.loyaltyId.toLowerCase().includes(search.toLowerCase()));
@@ -153,10 +145,7 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp,
                     <button onClick={onClose}><X size={20} /></button>
                 </div>
                 <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col md:flex-row gap-3">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                        <input className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none" placeholder="Search by Name or Loyalty ID..." value={search} onChange={(e) => setSearch(e.target.value)}/>
-                    </div>
+                    <div className="relative flex-1"><Search className="absolute left-3 top-3 text-gray-400" size={18} /><input className="w-full bg-white border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-[#99042E] focus:outline-none" placeholder="Search by Name or Loyalty ID..." value={search} onChange={(e) => setSearch(e.target.value)}/></div>
                     <button onClick={onOpenSignUp} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition"><UserPlus size={18} /> Sign Up New</button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-2">
@@ -185,7 +174,6 @@ const CustomerListModal = ({ customers, onClose, onSelectCustomer, onOpenSignUp,
     );
 };
 
-// --- BULK ADD INVENTORY MODAL ---
 const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (products: Product[]) => void }) => {
   const generateCode = (cat: string) => {
       const random = Math.floor(100000 + Math.random() * 900000);
@@ -197,22 +185,13 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
       { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }
   ]);
 
-  const addRow = () => {
-      setRows([...rows, { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }]);
-  };
-
-  const removeRow = (index: number) => {
-      if(rows.length > 1) {
-          setRows(rows.filter((_, i) => i !== index));
-      }
-  };
-
+  const addRow = () => setRows([...rows, { id: uuidv4(), category: 'Rings', code: generateCode('Rings'), name: '', price: 0, stock: 10 }]);
+  const removeRow = (index: number) => { if(rows.length > 1) setRows(rows.filter((_, i) => i !== index)); };
+  
   const updateRow = (index: number, field: keyof Product, value: any) => {
       const newRows = [...rows];
       newRows[index] = { ...newRows[index], [field]: value };
-      if (field === 'category') {
-          newRows[index].code = generateCode(value);
-      }
+      if (field === 'category') newRows[index].code = generateCode(value);
       setRows(newRows);
   };
 
@@ -224,58 +203,23 @@ const AddInventoryModal = ({ onClose, onSave }: { onClose: () => void, onSave: (
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white p-6 rounded-lg w-full max-w-5xl shadow-xl animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold text-lg flex items-center gap-2"><PlusCircle size={20} className="text-[#99042E]"/> Bulk Add Inventory</h2>
-                <button onClick={onClose}><X size={20} /></button>
-            </div>
-            
+            <div className="flex justify-between items-center mb-4"><h2 className="font-bold text-lg flex items-center gap-2"><PlusCircle size={20} className="text-[#99042E]"/> Bulk Add Inventory</h2><button onClick={onClose}><X size={20} /></button></div>
             <div className="flex-1 overflow-auto border rounded-lg mb-4">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-100 text-xs font-bold text-gray-500 uppercase sticky top-0">
-                        <tr>
-                            <th className="p-3">Category</th>
-                            <th className="p-3">Code</th>
-                            <th className="p-3">Name</th>
-                            <th className="p-3 w-24">Price</th>
-                            <th className="p-3 w-20">Qty</th>
-                            <th className="p-3 w-10"></th>
+                    <thead className="bg-gray-100 text-xs font-bold text-gray-500 uppercase sticky top-0"><tr><th className="p-3">Category</th><th className="p-3">Code</th><th className="p-3">Name</th><th className="p-3 w-24">Price</th><th className="p-3 w-20">Qty</th><th className="p-3 w-10"></th></tr></thead>
+                    <tbody className="divide-y divide-gray-100">{rows.map((row, i) => (
+                        <tr key={row.id}>
+                            <td className="p-2"><select className="w-full border p-1 rounded" value={row.category} onChange={e => updateRow(i, 'category', e.target.value)}><option value="Rings">Rings</option><option value="Necklace">Necklace</option><option value="Bracelet">Bracelet</option></select></td>
+                            <td className="p-2"><input className="w-full border p-1 rounded font-mono text-xs" value={row.code} onChange={e => updateRow(i, 'code', e.target.value)} /></td>
+                            <td className="p-2"><input className="w-full border p-1 rounded" placeholder="Product Name" value={row.name} onChange={e => updateRow(i, 'name', e.target.value)} /></td>
+                            <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.price || ''} onChange={e => updateRow(i, 'price', parseFloat(e.target.value))} /></td>
+                            <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.stock} onChange={e => updateRow(i, 'stock', parseInt(e.target.value))} /></td>
+                            <td className="p-2 text-center"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button></td>
                         </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {rows.map((row, i) => (
-                            <tr key={row.id}>
-                                <td className="p-2">
-                                    <select 
-                                        className="w-full border p-1 rounded" 
-                                        value={row.category} 
-                                        onChange={e => updateRow(i, 'category', e.target.value)}
-                                    >
-                                        <option value="Rings">Rings</option>
-                                        <option value="Necklace">Necklace</option>
-                                        <option value="Bracelet">Bracelet</option>
-                                    </select>
-                                </td>
-                                <td className="p-2"><input className="w-full border p-1 rounded font-mono text-xs" value={row.code} onChange={e => updateRow(i, 'code', e.target.value)} /></td>
-                                <td className="p-2"><input className="w-full border p-1 rounded" placeholder="Product Name" value={row.name} onChange={e => updateRow(i, 'name', e.target.value)} /></td>
-                                <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.price || ''} onChange={e => updateRow(i, 'price', parseFloat(e.target.value))} /></td>
-                                <td className="p-2"><input type="number" className="w-full border p-1 rounded" value={row.stock} onChange={e => updateRow(i, 'stock', parseInt(e.target.value))} /></td>
-                                <td className="p-2 text-center">
-                                    <button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><Trash2 size={16} /></button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
+                    ))}</tbody>
                 </table>
             </div>
-
-            <div className="flex gap-2">
-                <button onClick={addRow} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 font-bold text-sm">
-                    <Plus size={16} /> Add Row
-                </button>
-                <div className="flex-1"></div>
-                <button onClick={onClose} className="px-6 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button>
-                <button onClick={handleSave} className="px-6 py-2 bg-[#99042E] text-white rounded-lg font-bold hover:bg-[#7a0325]">Save All</button>
-            </div>
+            <div className="flex gap-2"><button onClick={addRow} className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50 font-bold text-sm"><Plus size={16} /> Add Row</button><div className="flex-1"></div><button onClick={onClose} className="px-6 py-2 text-gray-500 hover:bg-gray-100 rounded-lg font-bold">Cancel</button><button onClick={handleSave} className="px-6 py-2 bg-[#99042E] text-white rounded-lg font-bold hover:bg-[#7a0325]">Save All</button></div>
         </div>
     </div>
   );
@@ -371,8 +315,6 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
 
     const sortedProducts = Object.values(productStats).sort((a,b) => b.qty - a.qty).slice(0, 5);
     const sortedCategories = Object.entries(categoryStats).sort((a,b) => b[1] - a[1]);
-    
-    // INVENTORY SORT (LOWEST STOCK FIRST)
     const sortedInventory = [...inventory].sort((a,b) => a.stock - b.stock);
 
     const totalRevenue = filteredSales.reduce((sum, s) => sum + s.total, 0);
@@ -417,14 +359,8 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
                                 <div className="space-y-2">
                                     {sortedProducts.length === 0 ? <p className="text-gray-400 text-sm">No sales data yet.</p> : sortedProducts.map((p, i) => (
                                         <div key={i} className="flex justify-between items-center bg-white p-2 rounded shadow-sm">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-[#99042E] w-6 text-center">#{i+1}</span>
-                                                <span className="text-sm font-medium text-gray-800 truncate max-w-[120px]" title={p.name}>{p.name}</span>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="font-bold text-sm">{p.qty} Sold</div>
-                                                <div className="text-[10px] text-gray-400">${p.revenue.toLocaleString()}</div>
-                                            </div>
+                                            <div className="flex items-center gap-2"><span className="font-bold text-[#99042E] w-6 text-center">#{i+1}</span><span className="text-sm font-medium text-gray-800 truncate max-w-[120px]" title={p.name}>{p.name}</span></div>
+                                            <div className="text-right"><div className="font-bold text-sm">{p.qty} Sold</div><div className="text-[10px] text-gray-400">${p.revenue.toLocaleString()}</div></div>
                                         </div>
                                     ))}
                                 </div>
@@ -434,34 +370,24 @@ const SalesDashboardModal = ({ onClose, sales, inventory, onReverseSale, onDelet
                                 <div className="space-y-2">
                                     {sortedCategories.length === 0 ? <p className="text-gray-400 text-sm">No data.</p> : sortedCategories.map(([cat, amount], i) => (
                                         <div key={i} className="flex flex-col gap-1">
-                                            <div className="flex justify-between text-sm">
-                                                <span className="font-medium text-gray-600">{cat}</span>
-                                                <span className="font-bold text-gray-900">${amount.toLocaleString()}</span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
-                                                <div className="bg-[#99042E] h-full rounded-full" style={{ width: `${(amount / totalRevenue) * 100}%` }}></div>
-                                            </div>
+                                            <div className="flex justify-between text-sm"><span className="font-medium text-gray-600">{cat}</span><span className="font-bold text-gray-900">${amount.toLocaleString()}</span></div>
+                                            <div className="w-full bg-gray-200 h-2 rounded-full overflow-hidden"><div className="bg-[#99042E] h-full rounded-full" style={{ width: `${(amount / totalRevenue) * 100}%` }}></div></div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                            {/* --- NEW INVENTORY SECTION --- */}
                             <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 md:col-span-2">
                                 <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><Package size={18} className="text-blue-600" /> Live Inventory Levels</h3>
                                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                                     {sortedInventory.length === 0 ? <p className="text-gray-400 text-sm">No inventory.</p> : sortedInventory.map((p) => {
                                         const stockPct = Math.min(100, (p.stock / 20) * 100); 
                                         let barColor = 'bg-green-500';
-                                        if (p.stock < 5) barColor = 'bg-red-500';
-                                        else if (p.stock < 10) barColor = 'bg-orange-500';
-
+                                        if (p.stock < 5) barColor = 'bg-red-500'; else if (p.stock < 10) barColor = 'bg-orange-500';
                                         return (
                                             <div key={p.id} className="flex items-center gap-3 bg-white p-2 rounded shadow-sm">
                                                 <div className="w-24 truncate text-xs font-mono text-gray-500">{p.code}</div>
                                                 <div className="flex-1 font-medium text-gray-800 text-sm truncate">{p.name}</div>
-                                                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${stockPct}%` }}></div>
-                                                </div>
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${stockPct}%` }}></div></div>
                                                 <div className={`w-8 text-right font-bold text-sm ${p.stock < 5 ? 'text-red-500' : 'text-gray-700'}`}>{p.stock}</div>
                                             </div>
                                         );
@@ -509,49 +435,33 @@ export default function App() {
 
   const geminiServiceRef = useRef<GeminiService | null>(null);
 
-  // --- FIREBASE SYNC (LIVE UPDATES) ---
   useEffect(() => {
-    // Inventory Listener
+    // Inventory
     const unsubInv = onSnapshot(collection(db, "inventory"), (snapshot) => {
         const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
         setAppState(prev => ({ ...prev, inventory: products }));
         setDbStatus('connected');
-    }, (error) => {
-        console.error("DB Error:", error);
-        setDbStatus('error');
-    });
-
-    // Sales Listener
+    }, (error) => { console.error("DB Error:", error); setDbStatus('error'); });
+    
+    // Sales
     const q = query(collection(db, "sales"), orderBy("timestamp", "desc"));
     const unsubSales = onSnapshot(q, (snapshot) => {
         const salesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SalesRecord));
         setAppState(prev => ({ ...prev, sales: salesData }));
-    }, (error) => setDbStatus('error'));
+    }, () => setDbStatus('error'));
 
-    // Customers Listener (LIVE FROM GOOGLE SHEET SYNC)
+    // Customers
     const unsubCust = onSnapshot(collection(db, "customers"), (snapshot) => {
         const custData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
         setAppState(prev => ({ ...prev, customers: custData }));
-    }, (error) => setDbStatus('error'));
+    }, () => setDbStatus('error'));
 
-    return () => {
-        unsubInv();
-        unsubSales();
-        unsubCust();
-    };
+    return () => { unsubInv(); unsubSales(); unsubCust(); };
   }, []);
 
-  useEffect(() => {
-    geminiServiceRef.current = new GeminiService(appState);
-  }, []);
-
-  useEffect(() => {
-    if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState);
-  }, [appState]);
-
-  useEffect(() => {
-     setUsePoints(false);
-  }, [customerId]);
+  useEffect(() => { geminiServiceRef.current = new GeminiService(appState); }, []);
+  useEffect(() => { if (geminiServiceRef.current) geminiServiceRef.current.syncState(appState); }, [appState]);
+  useEffect(() => { setUsePoints(false); }, [customerId]);
 
   const handleRegisterCustomer = (data: { name: string, email: string, dob: string }) => {
       const randomSixDigit = Math.floor(100000 + Math.random() * 900000);
@@ -577,9 +487,6 @@ export default function App() {
           alert("Error: Database permission denied. Check Firebase Rules.");
       });
   };
-
-  // ... (Update other handlers to catch permission errors) ...
-  // Simplified for brevity, logic remains the same as v13.0 but with better error alerts
 
   const handleUpdateCustomer = async (updatedCustomer: Customer) => {
       try {
@@ -789,7 +696,7 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <header className="bg-[#99042E] text-white h-16 shrink-0 flex items-center justify-between px-3 md:px-6 shadow-md z-20">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v13.1 (Status Ind)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-bold text-xl shrink-0">G</div><div className="flex flex-col justify-center"><h1 className="font-bold text-lg leading-none">Gift Factory Ja. <span className="text-xs bg-white/20 px-1 rounded ml-1">v13.0 (Lint Free)</span></h1><p className="text-[10px] text-[#F0C053] font-bold tracking-widest uppercase mt-1">POS Terminal</p></div></div>
         <div className="flex items-center gap-2">
            <div className={`hidden md:flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${dbStatus === 'connected' ? 'bg-green-100 text-green-700' : dbStatus === 'error' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-500'}`}>
                {dbStatus === 'connected' ? <Wifi size={12} /> : <Activity size={12} />} 
